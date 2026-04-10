@@ -1,0 +1,15 @@
+
+> lcc-attendance-system@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 6s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 3.2s (127 modules)
+ ○ Compiling /auth/admin/login ...
+ ✓ Compiled /auth/admin/login in 14.3s (624 modules)
+ GET /auth/admin/login 200 in 15162ms
