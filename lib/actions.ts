@@ -4,6 +4,101 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Kelas, Prodi, StatusAbsensi, BadgeType } from './types'
 import { ValidationError, validateNama, validateEmail, validatePassword, validateTanggal, validatePertemuan } from './errors'
+import { deleteMemberAuthUser, ensureMemberAuthUser, getMemberAuthFlags, normalizeNim } from './member-auth'
+
+type CreateMahasiswaInput = {
+  kelas: Kelas
+  nama: string
+  nim: string
+  prodi: Prodi
+}
+
+async function createMahasiswaWithAccount(
+  input: CreateMahasiswaInput,
+  options?: { revalidate?: boolean },
+) {
+  validateNama(input.nama)
+
+  const normalizedNim = normalizeNim(input.nim)
+  const supabase = await createClient()
+
+  const { data: existingMember, error: lookupError } = await supabase
+    .from('mahasiswa')
+    .select('id')
+    .eq('nim', normalizedNim)
+    .maybeSingle()
+
+  if (lookupError) {
+    throw lookupError
+  }
+
+  if (existingMember) {
+    throw new ValidationError('NIM sudah terdaftar')
+  }
+
+  const { data: insertedMember, error: insertError } = await supabase
+    .from('mahasiswa')
+    .insert({
+      kelas: input.kelas,
+      nama: input.nama.trim(),
+      nim: normalizedNim,
+      prodi: input.prodi,
+    })
+    .select('*')
+    .single()
+
+  if (insertError || !insertedMember) {
+    throw insertError ?? new Error('Gagal menyimpan data anggota')
+  }
+
+  let authUserId: string | null = null
+  let createdAuthUser = false
+
+  try {
+    const authUser = await ensureMemberAuthUser({
+      memberId: insertedMember.id,
+      mustChangePassword: true,
+      nama: insertedMember.nama,
+      nim: normalizedNim,
+      prodi: insertedMember.prodi,
+    })
+
+    authUserId = authUser.userId
+    createdAuthUser = authUser.created
+
+    const { data: linkedMember, error: linkError } = await supabase
+      .from('mahasiswa')
+      .update({
+        user_id: authUser.userId,
+      })
+      .eq('id', insertedMember.id)
+      .select('*')
+      .single()
+
+    if (linkError || !linkedMember) {
+      throw linkError ?? new Error('Gagal menghubungkan akun anggota dengan data mahasiswa')
+    }
+
+    if (options?.revalidate !== false) {
+      revalidatePath('/dashboard/mahasiswa')
+      revalidatePath('/dashboard')
+    }
+
+    return linkedMember
+  } catch (error) {
+    await supabase.from('mahasiswa').delete().eq('id', insertedMember.id)
+
+    if (createdAuthUser && authUserId) {
+      try {
+        await deleteMemberAuthUser(authUserId)
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user after member creation error:', cleanupError)
+      }
+    }
+
+    throw error
+  }
+}
 
 // ─── Auth ────────────────────────────────────────────────
 export async function signOut() {
@@ -34,39 +129,71 @@ export async function getMahasiswa(kelas?: Kelas) {
 }
 
 export async function addMahasiswa(nama: string, kelas: Kelas, prodi: Prodi, nim?: string) {
-  validateNama(nama)
-  const supabase = await createClient()
-  
-  // Check for duplicates
-  const { data: existing } = await supabase
-    .from('mahasiswa')
-    .select('id')
-    .eq('nama', nama.trim())
-    .eq('kelas', kelas)
-    .single()
-  if (existing) throw new ValidationError('Mahasiswa dengan nama dan kelas yang sama sudah ada')
-  
-  const insertData: Record<string, unknown> = { nama: nama.trim(), kelas, prodi }
-  if (nim) insertData.nim = nim.trim()
-  
-  const { data, error } = await supabase.from('mahasiswa').insert(insertData).select().single()
-  if (error) throw error
-  revalidatePath('/dashboard/mahasiswa')
-  revalidatePath('/dashboard')
-  return data
+  if (!nim?.trim()) {
+    throw new ValidationError('NIM wajib diisi untuk membuat akun anggota')
+  }
+
+  return createMahasiswaWithAccount({
+    kelas,
+    nama,
+    nim,
+    prodi,
+  })
 }
 
 export async function updateMahasiswa(id: string, nama: string, kelas: Kelas, prodi: Prodi) {
   const supabase = await createClient()
+  const { data: existingMember, error: fetchError } = await supabase
+    .from('mahasiswa')
+    .select('id, nim, user_id')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !existingMember) {
+    throw fetchError ?? new Error('Data mahasiswa tidak ditemukan')
+  }
+
   const { error } = await supabase.from('mahasiswa').update({ nama, kelas, prodi }).eq('id', id)
   if (error) throw error
+
+  if (existingMember.user_id && existingMember.nim) {
+    const flags = await getMemberAuthFlags(existingMember.user_id)
+
+    await ensureMemberAuthUser({
+      memberId: id,
+      mustChangePassword: flags.mustChangePassword,
+      nama,
+      nim: existingMember.nim,
+      prodi,
+    })
+  }
+
   revalidatePath('/dashboard/mahasiswa')
 }
 
 export async function deleteMahasiswa(id: string) {
   const supabase = await createClient()
+  const { data: existingMember, error: fetchError } = await supabase
+    .from('mahasiswa')
+    .select('user_id')
+    .eq('id', id)
+    .single()
+
+  if (fetchError) {
+    throw fetchError
+  }
+
   const { error } = await supabase.from('mahasiswa').delete().eq('id', id)
   if (error) throw error
+
+  if (existingMember?.user_id) {
+    try {
+      await deleteMemberAuthUser(existingMember.user_id)
+    } catch (cleanupError) {
+      console.error('Failed to cleanup member auth user:', cleanupError)
+    }
+  }
+
   revalidatePath('/dashboard/mahasiswa')
   revalidatePath('/dashboard')
 }
@@ -74,48 +201,28 @@ export async function deleteMahasiswa(id: string) {
 export async function importMahasiswaFromExcel(
   records: { nama: string; nim?: string; prodi: Prodi; kelas: Kelas }[]
 ) {
-  const supabase = await createClient()
-  const bcrypt = await import('bcryptjs')
-  
   const results: Array<Record<string, unknown>> = []
   
   for (const record of records) {
-    if (!record.nama?.trim()) continue
-    
-    // Check for duplicate
-    const { data: existing } = await supabase
-      .from('mahasiswa')
-      .select('id')
-      .eq('nama', record.nama.trim())
-      .eq('kelas', record.kelas)
-      .single()
-    
-    if (existing) continue // Skip duplicates
-    
-    const insertData: Record<string, unknown> = {
-      nama: record.nama.trim(),
-      kelas: record.kelas,
-      prodi: record.prodi,
+    if (!record.nama?.trim() || !record.nim?.trim()) {
+      continue
     }
-    if (record.nim) insertData.nim = record.nim.trim()
-    
-    const { data, error } = await supabase.from('mahasiswa').insert(insertData).select().single()
-    if (error) continue
-    
-    // Create student account with default password (NIM or nama lowercase)
-    if (data && record.nim) {
-      const defaultPassword = record.nim.toLowerCase()
-      const hashedPassword = await bcrypt.hash(defaultPassword, 10)
-      
-      await supabase.from('student_accounts').insert({
-        mahasiswa_id: data.id,
-        nim: record.nim.toLowerCase(),
-        password_hash: hashedPassword,
-        must_change_password: true,
-      })
+
+    try {
+      const createdMember = await createMahasiswaWithAccount(
+        {
+          kelas: record.kelas,
+          nama: record.nama,
+          nim: record.nim,
+          prodi: record.prodi,
+        },
+        { revalidate: false },
+      )
+
+      results.push(createdMember)
+    } catch (error) {
+      console.error(`Skipping member import for NIM ${record.nim}:`, error)
     }
-    
-    results.push(data)
   }
   
   revalidatePath('/dashboard/mahasiswa')

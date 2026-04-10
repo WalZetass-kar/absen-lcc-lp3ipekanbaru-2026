@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown } from 'lucide-react'
 import type { Mahasiswa, Kelas, Prodi } from '@/lib/types'
 
 const PRODI_OPTIONS: Prodi[] = ['Humas', 'Akuntansi', 'Administrasi Bisnis', 'Manajemen Informatika']
@@ -32,6 +32,8 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
   const [search, setSearch] = useState('')
   const [filterKelas, setFilterKelas] = useState<string>('all')
   const [filterProdi, setFilterProdi] = useState<string>('all')
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   // Add dialog
@@ -67,6 +69,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
   }, [data, search, filterKelas, filterProdi])
 
   function openEdit(item: Mahasiswa) {
+    setActionError(null)
     setEditItem(item)
     setEditNama(item.nama)
     setEditKelas(item.kelas)
@@ -74,19 +77,40 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     setEditOpen(true)
   }
 
+  function getErrorMessage(error: unknown) {
+    if (error instanceof Error) return error.message
+    return 'Terjadi kesalahan. Silakan coba lagi.'
+  }
+
+  function openAttendancePdf(mode: 'preview' | 'download') {
+    const params = new URLSearchParams()
+
+    if (filterKelas !== 'all') params.set('kelas', filterKelas)
+    if (filterProdi !== 'all') params.set('prodi', filterProdi)
+    if (mode === 'download') params.set('download', '1')
+
+    const url = `/api/print${params.toString() ? `?${params.toString()}` : ''}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   function handleAdd() {
-    if (!addNama.trim()) return
+    if (!addNama.trim() || !addNim.trim()) return
+    setActionError(null)
+    setActionSuccess(null)
+
     startTransition(async () => {
       try {
-        const created = await addMahasiswa(addNama.trim(), addKelas, addProdi, addNim.trim() || undefined)
+        const created = await addMahasiswa(addNama.trim(), addKelas, addProdi, addNim.trim())
         setData(prev => [...prev, created as Mahasiswa])
         setAddNama('')
         setAddNim('')
         setAddKelas('Graphic Design')
         setAddProdi('Manajemen Informatika')
         setAddOpen(false)
+        setActionSuccess('Anggota berhasil ditambahkan. Password default login adalah NIM.')
       } catch (error) {
         console.error('Error adding mahasiswa:', error)
+        setActionError(getErrorMessage(error))
       }
     })
   }
@@ -111,6 +135,8 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     if (!importFile) return
     setImportError(null)
     setImportSuccess(null)
+    setActionError(null)
+    setActionSuccess(null)
 
     startTransition(async () => {
       try {
@@ -153,13 +179,13 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
             kelas = 'Web Design'
           }
 
-          if (nama && nama !== '') {
+          if (nama && nama !== '' && nim) {
             newData.push({ nama, nim, prodi, kelas })
           }
         }
 
         if (newData.length === 0) {
-          setImportError('Tidak ada data valid yang ditemukan')
+          setImportError('Tidak ada data valid yang ditemukan. Pastikan setiap baris memiliki NIM.')
           return
         }
 
@@ -170,7 +196,8 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
         if (importedData && Array.isArray(importedData)) {
           setData(prev => [...prev, ...importedData])
-          setImportSuccess(`Berhasil mengimpor ${importedData.length} mahasiswa`)
+          setImportSuccess(`Berhasil mengimpor ${importedData.length} anggota. Password default login adalah NIM.`)
+          setActionSuccess(`Berhasil mengimpor ${importedData.length} anggota.`)
         } else {
           setImportError('Gagal mengimpor data')
         }
@@ -189,6 +216,9 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
   function handleEdit() {
     if (!editItem || !editNama.trim()) return
+    setActionError(null)
+    setActionSuccess(null)
+
     startTransition(async () => {
       try {
         await updateMahasiswa(editItem.id, editNama.trim(), editKelas, editProdi)
@@ -198,21 +228,28 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
         ))
         setEditOpen(false)
         setEditItem(null)
+        setActionSuccess('Data anggota berhasil diperbarui.')
       } catch (error) {
         console.error('Error updating mahasiswa:', error)
+        setActionError(getErrorMessage(error))
       }
     })
   }
 
   function handleDelete() {
     if (!deleteId) return
+    setActionError(null)
+    setActionSuccess(null)
+
     startTransition(async () => {
       try {
         await deleteMahasiswa(deleteId)
         setData(prev => prev.filter(m => m.id !== deleteId))
         setDeleteId(null)
+        setActionSuccess('Anggota berhasil dihapus.')
       } catch (error) {
         console.error('Error deleting mahasiswa:', error)
+        setActionError(getErrorMessage(error))
       }
     })
   }
@@ -222,12 +259,20 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Mahasiswa</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Kelola data mahasiswa LCC</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Kelola data anggota LCC dan akun login berbasis NIM</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => openAttendancePdf('preview')} size="sm">
+            <Printer className="w-4 h-4 mr-2" />
+            Preview PDF
+          </Button>
+          <Button variant="outline" onClick={() => openAttendancePdf('download')} size="sm">
+            <FileDown className="w-4 h-4 mr-2" />
+            Download PDF
+          </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)} size="sm">
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
@@ -238,6 +283,16 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
           </Button>
         </div>
       </div>
+
+      {(actionError || actionSuccess) && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${
+          actionError
+            ? 'border-destructive/20 bg-destructive/10 text-destructive'
+            : 'border-green-200 bg-green-50 text-green-700'
+        }`}>
+          {actionError ?? actionSuccess}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
@@ -358,7 +413,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Tambah Mahasiswa</DialogTitle>
-            <DialogDescription>Tambahkan data mahasiswa baru ke dalam sistem</DialogDescription>
+            <DialogDescription>Tambahkan data anggota baru dan buat akun login otomatis dari NIM</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -377,6 +432,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                 value={addNim}
                 onChange={e => setAddNim(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -401,10 +457,15 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5">
+              <p className="text-sm text-blue-700">
+                Password default anggota adalah NIM. Sistem akan membuat akun login secara otomatis dan anggota diminta mengganti password saat login pertama.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Batal</Button>
-            <Button onClick={handleAdd} disabled={isPending || !addNama.trim()}>
+            <Button onClick={handleAdd} disabled={isPending || !addNama.trim() || !addNim.trim()}>
               {isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </DialogFooter>
@@ -503,7 +564,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
               <p className="text-sm font-medium">Format CSV yang diterima:</p>
               <code className="text-xs block bg-background p-2 rounded">nama,nim,prodi,kelas</code>
               <p className="text-xs text-muted-foreground">
-                Kolom <strong>nama</strong> wajib. Kolom lain opsional.
+                Kolom <strong>nama</strong> dan <strong>nim</strong> wajib. Password default anggota akan mengikuti NIM.
               </p>
               <Button variant="outline" size="sm" onClick={downloadTemplate}>
                 <Download className="w-4 h-4 mr-2" />

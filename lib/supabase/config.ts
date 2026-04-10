@@ -14,3 +14,11 @@ export function getSupabaseEnv() {
     anonKey: sanitizeEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY'),
   }
 }
+
+export function getSupabaseServiceRoleKey() {
+  return sanitizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY')
+}
+
+export function getStudentSessionSecret() {
+  return sanitizeEnvValue(process.env.STUDENT_SESSION_SECRET, 'STUDENT_SESSION_SECRET')
+}

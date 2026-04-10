@@ -17,6 +17,7 @@ export interface Mahasiswa {
   nim?: string
   kelas: Kelas
   prodi: Prodi
+  user_id?: string | null
   created_at: string
 }
 

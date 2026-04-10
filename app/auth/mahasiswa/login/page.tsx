@@ -132,7 +132,7 @@ export default function MahasiswaLoginPage() {
 
               {/* Helper Text */}
               <p className="text-xs text-slate-500 bg-blue-50 rounded-lg p-2.5">
-                <span className="font-medium">Catatan:</span> Password default adalah NIM Anda (huruf kecil)
+                <span className="font-medium">Catatan:</span> Password default adalah NIM Anda. Demi keamanan, Anda akan diminta mengganti password saat login pertama.
               </p>
 
               {/* Login Button */}
