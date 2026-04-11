@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Kelas, Prodi, StatusAbsensi, BadgeType } from './types'
+import { ensureCertificateRecord } from './certificates'
 import { ValidationError, validateNama, validateEmail, validatePassword, validateTanggal, validatePertemuan } from './errors'
 import { deleteMemberAuthUser, ensureMemberAuthUser, getMemberAuthFlags, normalizeNim } from './member-auth'
 
@@ -139,6 +140,54 @@ export async function addMahasiswa(nama: string, kelas: Kelas, prodi: Prodi, nim
     nim,
     prodi,
   })
+}
+
+export async function syncMahasiswaAccount(id: string) {
+  const supabase = await createClient()
+  const { data: mahasiswa, error: mahasiswaError } = await supabase
+    .from('mahasiswa')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (mahasiswaError || !mahasiswa) {
+    throw mahasiswaError ?? new Error('Data mahasiswa tidak ditemukan')
+  }
+
+  if (!mahasiswa.nim?.trim()) {
+    throw new ValidationError('NIM wajib diisi sebelum membuat akun mahasiswa')
+  }
+
+  const normalizedNim = normalizeNim(mahasiswa.nim)
+  const authUser = await ensureMemberAuthUser({
+    memberId: mahasiswa.id,
+    mustChangePassword: true,
+    nama: mahasiswa.nama,
+    nim: normalizedNim,
+    prodi: mahasiswa.prodi,
+  })
+
+  const { data: updatedMahasiswa, error: updateError } = await supabase
+    .from('mahasiswa')
+    .update({
+      nim: normalizedNim,
+      user_id: authUser.userId,
+    })
+    .eq('id', mahasiswa.id)
+    .select('*')
+    .single()
+
+  if (updateError || !updatedMahasiswa) {
+    throw updateError ?? new Error('Gagal menghubungkan akun mahasiswa')
+  }
+
+  revalidatePath('/dashboard/mahasiswa')
+
+  return {
+    created: authUser.created,
+    email: authUser.email,
+    member: updatedMahasiswa,
+  }
 }
 
 export async function updateMahasiswa(id: string, nama: string, kelas: Kelas, prodi: Prodi) {
@@ -619,44 +668,16 @@ export async function calculateAttendancePercentage(mahasiswa_id: string, totalP
 }
 
 export async function generateCertificate(mahasiswa_id: string, totalPertemuan: number = 16) {
-  const supabase = await createClient()
-  
-  const { hadirCount, percentage } = await calculateAttendancePercentage(mahasiswa_id, totalPertemuan)
-  
-  if (percentage < 80) throw new ValidationError('Attendance percentage must be at least 80% to generate certificate')
-  
-  const { data: mahasiswa } = await supabase
-    .from('mahasiswa')
-    .select('nama, kelas')
-    .eq('id', mahasiswa_id)
-    .single()
-  
-  const { data: existing } = await supabase
-    .from('student_certificates')
-    .select('id')
-    .eq('mahasiswa_id', mahasiswa_id)
-    .single()
-  
-  if (existing) {
-    await supabase
-      .from('student_certificates')
-      .update({
-        total_hadir: hadirCount,
-        total_pertemuan: totalPertemuan,
-        attendance_percentage: percentage,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existing.id)
-  } else {
-    await supabase.from('student_certificates').insert({
-      mahasiswa_id,
-      total_hadir: hadirCount,
-      total_pertemuan: totalPertemuan,
-      attendance_percentage: percentage,
-    })
+  const { overview } = await ensureCertificateRecord(mahasiswa_id, totalPertemuan)
+
+  revalidatePath('/dashboard/sertifikat')
+  revalidatePath('/student/certificate')
+
+  return {
+    mahasiswa: overview.nama,
+    hadirCount: overview.hadirCount,
+    percentage: overview.percentage,
   }
-  
-  return { mahasiswa: mahasiswa?.nama, hadirCount, percentage }
 }
 
 export async function getStudentBadges(mahasiswa_id: string) {

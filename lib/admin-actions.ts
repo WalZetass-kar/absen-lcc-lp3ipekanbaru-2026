@@ -1,6 +1,16 @@
+'use server'
+
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { QRCode, Announcement, Pertemuan, StudentPermission, ActivityDocumentation, AdminActivityLog } from './types'
+import type {
+  QRCode,
+  Announcement,
+  StudentPermission,
+  ActivityDocumentation,
+  AdminActivityLog,
+  PendingPermissionWithDetails,
+  PertemuanWithQR,
+} from './types'
 
 // ─── Activity Documentation ──────────────────────────────
 export async function createActivityDocumentation(
@@ -176,7 +186,8 @@ export async function createAutoPertemuan() {
   const supabase = await createClient()
   const today = new Date()
   const nextSaturday = new Date(today)
-  nextSaturday.setDate(today.getDate() + ((6 - today.getDay()) % 7) + 1)
+  const daysUntilSaturday = (6 - today.getDay() + 7) % 7
+  nextSaturday.setDate(today.getDate() + daysUntilSaturday)
   
   const { data: lastMeeting } = await supabase
     .from('pertemuan')
@@ -195,6 +206,7 @@ export async function createAutoPertemuan() {
   
   if (error) throw error
   revalidatePath('/dashboard')
+  revalidatePath('/dashboard/qr-management')
 }
 
 // Approve/reject permission
@@ -341,7 +353,11 @@ export async function getPendingPermissionsWithDetails() {
     .order('created_at', { ascending: false })
   
   if (error) throw error
-  return data
+  return (data ?? []).map((item) => ({
+    ...item,
+    mahasiswa: Array.isArray(item.mahasiswa) ? (item.mahasiswa[0] ?? null) : (item.mahasiswa ?? null),
+    pertemuan: Array.isArray(item.pertemuan) ? (item.pertemuan[0] ?? null) : (item.pertemuan ?? null),
+  })) as PendingPermissionWithDetails[]
 }
 
 // Record attendance for approved permission
@@ -389,7 +405,10 @@ export async function getPertemuanWithQR() {
     .order('nomor_pertemuan', { ascending: false })
   
   if (error) throw error
-  return data
+  return (data ?? []).map((item) => ({
+    ...item,
+    qr_codes: Array.isArray(item.qr_codes) ? item.qr_codes : [],
+  })) as PertemuanWithQR[]
 }
 
 // Deactivate QR code

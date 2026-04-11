@@ -112,6 +112,21 @@ export interface StudentCertificate {
   updated_at: string
 }
 
+export interface CertificateOverview {
+  id: string
+  nama: string
+  nim: string | null
+  kelas: Kelas
+  prodi: Prodi
+  hadirCount: number
+  totalPertemuan: number
+  percentage: number
+  eligible: boolean
+  certificateGenerated: boolean
+  issuedAt?: string | null
+  downloadedAt?: string | null
+}
+
 export interface StudentAccount {
   id: string
   mahasiswa_id: string
@@ -140,6 +155,10 @@ export interface QRCode {
   expires_at?: string
 }
 
+export interface PertemuanWithQR extends Pertemuan {
+  qr_codes: QRCode[]
+}
+
 export interface StudentPermission {
   id: string
   mahasiswa_id: string
@@ -151,6 +170,11 @@ export interface StudentPermission {
   approved_by?: string
   created_at: string
   updated_at: string
+}
+
+export interface PendingPermissionWithDetails extends StudentPermission {
+  mahasiswa?: Pick<Mahasiswa, 'nama' | 'kelas'> | null
+  pertemuan?: Pick<Pertemuan, 'nomor_pertemuan' | 'tanggal'> | null
 }
 
 export interface Announcement {

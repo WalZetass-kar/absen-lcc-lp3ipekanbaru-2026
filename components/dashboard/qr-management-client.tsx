@@ -1,37 +1,56 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useRouter } from 'next/navigation'
+import { QRCodeCanvas } from 'qrcode.react'
+import { Check, Download, Loader2, PlusCircle, QrCode, X } from 'lucide-react'
+
+import { createAutoPertemuan } from '@/lib/admin-actions'
+import { approvePermission, deactivateQRCode, generateQRCode } from '@/lib/auth-actions'
+import type { PendingPermissionWithDetails, PertemuanWithQR } from '@/lib/types'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useRouter } from 'next/navigation'
-import { approvePermission, deactivateQRCode, generateQRCode } from '@/lib/auth-actions'
-import { Loader2, QrCode, Check, X, AlertCircle } from 'lucide-react'
-import { QRCodeCanvas } from 'qrcode.react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-interface QRManagementClientProps {
-  initialPertemuan: any[]
-  initialPermissions: any[]
+type MessageState = {
+  text: string
+  type: 'success' | 'error'
+}
+
+function formatDateLabel(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function buildDefaultQrValue(pertemuan: PertemuanWithQR) {
+  return `LCC-P${pertemuan.nomor_pertemuan}-${Date.now()}`
 }
 
 export default function QRManagementClient({
   initialPertemuan,
   initialPermissions,
-}: QRManagementClientProps) {
+}: {
+  initialPertemuan: PertemuanWithQR[]
+  initialPermissions: PendingPermissionWithDetails[]
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [pertemuan, setPertemuan] = useState(initialPertemuan)
   const [permissions, setPermissions] = useState(initialPermissions)
-  const [selectedPertemuan, setSelectedPertemuan] = useState<string>('')
-  const [qrValue, setQrValue] = useState<string>('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [selectedPertemuanId, setSelectedPertemuanId] = useState('')
+  const [qrValue, setQrValue] = useState('')
+  const [message, setMessage] = useState<MessageState | null>(null)
   const [openQRDialog, setOpenQRDialog] = useState(false)
-  const qrRef = useRef<any>(null)
+  const qrRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setPertemuan(initialPertemuan)
@@ -41,96 +60,132 @@ export default function QRManagementClient({
     setPermissions(initialPermissions)
   }, [initialPermissions])
 
-  const handleGenerateQR = () => {
-    if (!selectedPertemuan || !qrValue.trim()) {
-      setMessage({ type: 'error', text: 'Pilih pertemuan dan masukkan data QR' })
-      return
+  const selectedPertemuan = pertemuan.find((item) => item.id === selectedPertemuanId) ?? null
+
+  function handleSelectPertemuan(value: string) {
+    setSelectedPertemuanId(value)
+    const nextPertemuan = pertemuan.find((item) => item.id === value)
+
+    if (nextPertemuan && !qrValue.trim()) {
+      setQrValue(buildDefaultQrValue(nextPertemuan))
     }
+  }
 
-    const pertemuanId = selectedPertemuan
-    const nextQrValue = qrValue.trim()
-
+  function handleCreatePertemuan() {
+    setMessage(null)
     startTransition(async () => {
       try {
-        const generatedQR = await generateQRCode(pertemuanId, nextQrValue)
-
-        setPertemuan((prev) => prev.map((item) => {
-          if (item.id !== pertemuanId) return item
-
-          const existingQR = Array.isArray(item.qr_codes) ? item.qr_codes : []
-          const inactiveQR = existingQR.map((qr: any) => ({ ...qr, is_active: false }))
-
-          return {
-            ...item,
-            qr_codes: [...inactiveQR, generatedQR],
-          }
-        }))
-        setMessage({ type: 'success', text: 'QR code berhasil dibuat!' })
-        setQrValue('')
-        setSelectedPertemuan('')
-        setOpenQRDialog(false)
+        await createAutoPertemuan()
+        setMessage({ type: 'success', text: 'Pertemuan baru berhasil dibuat. Silakan pilih pertemuan lalu generate QR code.' })
         router.refresh()
       } catch (error) {
-        setMessage({ type: 'error', text: (error as Error).message || 'Gagal membuat QR code' })
+        setMessage({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'Gagal membuat pertemuan baru',
+        })
       }
     })
   }
 
-  const handleDeactivateQR = (qrId: string) => {
+  function handleGenerateQR() {
+    if (!selectedPertemuan || !qrValue.trim()) {
+      setMessage({ type: 'error', text: 'Pilih pertemuan dan pastikan data QR code terisi.' })
+      return
+    }
+
+    setMessage(null)
+    const nextQrValue = qrValue.trim()
+
+    startTransition(async () => {
+      try {
+        const generatedQR = await generateQRCode(selectedPertemuan.id, nextQrValue)
+
+        setPertemuan((prev) => prev.map((item) => {
+          if (item.id !== selectedPertemuan.id) return item
+
+          return {
+            ...item,
+            qr_codes: [
+              ...item.qr_codes.map((qr) => ({ ...qr, is_active: false })),
+              generatedQR,
+            ],
+          }
+        }))
+        setMessage({ type: 'success', text: `QR code untuk pertemuan ${selectedPertemuan.nomor_pertemuan} berhasil dibuat.` })
+        setQrValue('')
+        setSelectedPertemuanId('')
+        setOpenQRDialog(false)
+        router.refresh()
+      } catch (error) {
+        setMessage({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'Gagal membuat QR code',
+        })
+      }
+    })
+  }
+
+  function handleDeactivateQR(qrId: string) {
     if (!confirm('Nonaktifkan QR code ini?')) return
 
+    setMessage(null)
     startTransition(async () => {
       try {
         await deactivateQRCode(qrId)
         setPertemuan((prev) => prev.map((item) => ({
           ...item,
-          qr_codes: Array.isArray(item.qr_codes)
-            ? item.qr_codes.map((qr: any) => (
-              qr.id === qrId
-                ? { ...qr, is_active: false }
-                : qr
-            ))
-            : [],
+          qr_codes: item.qr_codes.map((qr) => (
+            qr.id === qrId
+              ? { ...qr, is_active: false }
+              : qr
+          )),
         })))
-        setMessage({ type: 'success', text: 'QR code berhasil dinonaktifkan' })
+        setMessage({ type: 'success', text: 'QR code berhasil dinonaktifkan.' })
         router.refresh()
       } catch (error) {
-        setMessage({ type: 'error', text: 'Gagal menonaktifkan QR code' })
+        setMessage({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'Gagal menonaktifkan QR code',
+        })
       }
     })
   }
 
-  const handleApprovePermission = (permissionId: string, approve: boolean) => {
+  function handleApprovePermission(permissionId: string, approve: boolean) {
+    setMessage(null)
     startTransition(async () => {
       try {
         await approvePermission(permissionId, approve)
+        setPermissions((prev) => prev.filter((permission) => permission.id !== permissionId))
         setMessage({
           type: 'success',
-          text: approve ? 'Permintaan disetujui' : 'Permintaan ditolak',
+          text: approve ? 'Permintaan izin berhasil disetujui.' : 'Permintaan izin berhasil ditolak.',
         })
-        setPermissions((prev) => prev.filter((permission) => permission.id !== permissionId))
         router.refresh()
       } catch (error) {
-        setMessage({ type: 'error', text: 'Gagal memproses permintaan' })
+        setMessage({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'Gagal memproses permintaan izin',
+        })
       }
     })
   }
 
-  const downloadQR = () => {
-    if (qrRef.current) {
-      const image = qrRef.current.querySelector('canvas').toDataURL('image/png')
-      const link = document.createElement('a')
-      link.href = image
-      link.download = `qr-code-${selectedPertemuan}.png`
-      link.click()
-    }
+  function downloadQR() {
+    const canvas = qrRef.current?.querySelector('canvas')
+    if (!canvas || !selectedPertemuan) return
+
+    const image = canvas.toDataURL('image/png')
+    const link = document.createElement('a')
+    link.href = image
+    link.download = `qr-code-pertemuan-${selectedPertemuan.nomor_pertemuan}.png`
+    link.click()
   }
 
   return (
     <div className="space-y-6">
       {message && (
         <Alert variant={message.type === 'success' ? 'default' : 'destructive'}>
-          <AlertCircle className="h-4 w-4" />
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
@@ -143,69 +198,87 @@ export default function QRManagementClient({
 
         <TabsContent value="qr" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Buat QR Code Baru</CardTitle>
-              <CardDescription>Generate QR code untuk pertemuan tertentu</CardDescription>
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle>Buat QR Code Baru</CardTitle>
+                <CardDescription>Generate QR code untuk pertemuan tertentu. Jika belum ada pertemuan, buat dulu otomatis dari sini.</CardDescription>
+              </div>
+              <Button variant="outline" onClick={handleCreatePertemuan} disabled={isPending}>
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                Buat Pertemuan
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pertemuan-select">Pilih Pertemuan</Label>
-                <select
-                  id="pertemuan-select"
-                  className="w-full px-3 py-2 border rounded-lg bg-background"
-                  value={selectedPertemuan}
-                  onChange={e => setSelectedPertemuan(e.target.value)}
-                >
-                  <option value="">-- Pilih Pertemuan --</option>
-                  {pertemuan.map(p => (
-                    <option key={p.id} value={p.id}>
-                      Pertemuan {p.nomor_pertemuan} - {p.tanggal}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {pertemuan.length === 0 ? (
+                <div className="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
+                  <QrCode className="mx-auto mb-3 h-10 w-10 opacity-40" />
+                  <p className="font-medium text-foreground">Belum ada pertemuan yang bisa dipilih</p>
+                  <p className="mt-1 text-sm">Klik tombol "Buat Pertemuan" untuk menambahkan jadwal pertemuan lebih dulu.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="pertemuan-select">Pilih Pertemuan</Label>
+                    <Select value={selectedPertemuanId} onValueChange={handleSelectPertemuan}>
+                      <SelectTrigger id="pertemuan-select">
+                        <SelectValue placeholder="Pilih pertemuan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pertemuan.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            Pertemuan {item.nomor_pertemuan} - {formatDateLabel(item.tanggal)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="qr-value">Data QR Code</Label>
-                <Input
-                  id="qr-value"
-                  placeholder="Masukkan data yang akan di-encode ke QR"
-                  value={qrValue}
-                  onChange={e => setQrValue(e.target.value)}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="qr-value">Data QR Code</Label>
+                    <Input
+                      id="qr-value"
+                      placeholder="Data QR otomatis bisa diubah bila diperlukan"
+                      value={qrValue}
+                      onChange={(event) => setQrValue(event.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Data QR akan dipakai oleh mahasiswa saat scan. Nilai ini boleh diganti manual bila dibutuhkan.
+                    </p>
+                  </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleGenerateQR}
-                  disabled={isPending || !selectedPertemuan || !qrValue}
-                  className="flex-1"
-                >
-                  {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Generate QR
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setOpenQRDialog(true)}
-                  disabled={!selectedPertemuan || !qrValue}
-                >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Preview
-                </Button>
-              </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      onClick={handleGenerateQR}
+                      disabled={isPending || !selectedPertemuan || !qrValue.trim()}
+                      className="flex-1"
+                    >
+                      {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                      Generate QR
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setOpenQRDialog(true)}
+                      disabled={!selectedPertemuan || !qrValue.trim()}
+                    >
+                      Preview
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <div className="grid gap-4">
-            {pertemuan.map(p => {
-              const activeQR = p.qr_codes?.filter((q: any) => q.is_active) || []
+            {pertemuan.map((item) => {
+              const activeQR = item.qr_codes.filter((qr) => qr.is_active)
+
               return (
-                <Card key={p.id}>
+                <Card key={item.id}>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
-                        <CardTitle className="text-base">Pertemuan {p.nomor_pertemuan}</CardTitle>
-                        <CardDescription>{p.tanggal}</CardDescription>
+                        <CardTitle className="text-base">Pertemuan {item.nomor_pertemuan}</CardTitle>
+                        <CardDescription>{formatDateLabel(item.tanggal)}</CardDescription>
                       </div>
                       <Badge variant={activeQR.length > 0 ? 'default' : 'secondary'}>
                         {activeQR.length} QR Aktif
@@ -215,9 +288,9 @@ export default function QRManagementClient({
                   <CardContent>
                     {activeQR.length > 0 ? (
                       <div className="space-y-2">
-                        {activeQR.map((qr: any) => (
-                          <div key={qr.id} className="flex items-center justify-between p-2 border rounded">
-                            <span className="text-sm text-muted-foreground truncate">{qr.qr_code_data}</span>
+                        {activeQR.map((qr) => (
+                          <div key={qr.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="truncate text-sm text-muted-foreground">{qr.qr_code_data}</span>
                             <Button
                               size="sm"
                               variant="destructive"
@@ -230,7 +303,7 @@ export default function QRManagementClient({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Tidak ada QR code aktif</p>
+                      <p className="text-sm text-muted-foreground">Tidak ada QR code aktif untuk pertemuan ini.</p>
                     )}
                   </CardContent>
                 </Card>
@@ -242,28 +315,28 @@ export default function QRManagementClient({
         <TabsContent value="permissions" className="space-y-4">
           {permissions.length > 0 ? (
             <div className="space-y-3">
-              {permissions.map(perm => (
-                <Card key={perm.id}>
+              {permissions.map((permission) => (
+                <Card key={permission.id}>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <CardTitle className="text-base">{perm.mahasiswa?.nama}</CardTitle>
+                        <CardTitle className="text-base">{permission.mahasiswa?.nama ?? 'Mahasiswa'}</CardTitle>
                         <CardDescription>
-                          Pertemuan {perm.pertemuan?.nomor_pertemuan} - {perm.pertemuan?.tanggal}
+                          Pertemuan {permission.pertemuan?.nomor_pertemuan ?? '-'} - {permission.pertemuan?.tanggal ? formatDateLabel(permission.pertemuan.tanggal) : 'Tanggal belum tersedia'}
                         </CardDescription>
                       </div>
-                      <Badge>{perm.mahasiswa?.kelas}</Badge>
+                      <Badge>{permission.mahasiswa?.kelas ?? '-'}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
                       <p className="text-sm font-medium">Alasan:</p>
-                      <p className="text-sm text-muted-foreground">{perm.alasan}</p>
+                      <p className="text-sm text-muted-foreground">{permission.alasan}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleApprovePermission(perm.id, true)}
+                        onClick={() => handleApprovePermission(permission.id, true)}
                         disabled={isPending}
                         className="flex-1 gap-2"
                       >
@@ -273,7 +346,7 @@ export default function QRManagementClient({
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleApprovePermission(perm.id, false)}
+                        onClick={() => handleApprovePermission(permission.id, false)}
                         disabled={isPending}
                         className="flex-1 gap-2"
                       >
@@ -288,7 +361,7 @@ export default function QRManagementClient({
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">Tidak ada permintaan izin yang menunggu</p>
+                <p className="text-center text-muted-foreground">Tidak ada permintaan izin yang menunggu.</p>
               </CardContent>
             </Card>
           )}
@@ -299,11 +372,13 @@ export default function QRManagementClient({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Preview QR Code</DialogTitle>
-            <DialogDescription>QR code yang akan dibuat</DialogDescription>
+            <DialogDescription>
+              {selectedPertemuan ? `Pertemuan ${selectedPertemuan.nomor_pertemuan}` : 'QR code yang akan dibuat'}
+            </DialogDescription>
           </DialogHeader>
-          {selectedPertemuan && qrValue && (
+          {selectedPertemuan && qrValue.trim() && (
             <div className="flex flex-col items-center gap-4">
-              <div ref={qrRef} className="p-4 bg-white rounded">
+              <div ref={qrRef} className="rounded bg-white p-4">
                 <QRCodeCanvas
                   value={qrValue}
                   size={256}
@@ -312,6 +387,7 @@ export default function QRManagementClient({
                 />
               </div>
               <Button onClick={downloadQR} className="w-full">
+                <Download className="w-4 h-4" />
                 Download QR Code
               </Button>
             </div>

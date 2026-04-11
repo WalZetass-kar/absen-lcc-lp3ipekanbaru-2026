@@ -1,6 +1,4 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import QRManagementClient from '@/components/dashboard/qr-management-client'
 import { getPertemuanWithQR, getPendingPermissionsWithDetails } from '@/lib/admin-actions'
 import { QrCode, FileCheck } from 'lucide-react'
@@ -34,7 +32,7 @@ export default async function QRManagementPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {pertemuanWithQR.reduce((sum, p) => sum + (p.qr_codes?.filter((q: any) => q.is_active).length || 0), 0)}
+              {pertemuanWithQR.reduce((sum, item) => sum + item.qr_codes.filter((qr) => qr.is_active).length, 0)}
             </p>
           </CardContent>
         </Card>

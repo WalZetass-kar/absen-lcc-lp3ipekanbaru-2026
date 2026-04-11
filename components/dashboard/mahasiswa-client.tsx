@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
-import { addMahasiswa, updateMahasiswa, deleteMahasiswa, importMahasiswaFromExcel } from '@/lib/actions'
+import { addMahasiswa, updateMahasiswa, deleteMahasiswa, importMahasiswaFromExcel, syncMahasiswaAccount } from '@/lib/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown, UserPlus } from 'lucide-react'
 import type { Mahasiswa, Kelas, Prodi } from '@/lib/types'
 
 const PRODI_OPTIONS: Prodi[] = ['Humas', 'Akuntansi', 'Administrasi Bisnis', 'Manajemen Informatika']
@@ -91,6 +91,26 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
     const url = `/api/print${params.toString() ? `?${params.toString()}` : ''}`
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  function handleSyncAccount(mahasiswa: Mahasiswa) {
+    setActionError(null)
+    setActionSuccess(null)
+
+    startTransition(async () => {
+      try {
+        const result = await syncMahasiswaAccount(mahasiswa.id)
+        setData((prev) => prev.map((item) => (
+          item.id === mahasiswa.id
+            ? { ...item, user_id: result.member.user_id, nim: result.member.nim }
+            : item
+        )))
+        setActionSuccess(`Akun mahasiswa untuk ${mahasiswa.nama} siap digunakan. Password default tetap NIM.`)
+      } catch (error) {
+        console.error('Error syncing mahasiswa account:', error)
+        setActionError(getErrorMessage(error))
+      }
+    })
   }
 
   function handleAdd() {
@@ -256,13 +276,14 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
   const totalGraphicDesign = data.filter(m => m.kelas === 'Graphic Design').length
   const totalWebDesign = data.filter(m => m.kelas === 'Web Design').length
+  const totalActiveAccounts = data.filter(m => Boolean(m.user_id)).length
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mahasiswa</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Kelola data anggota LCC dan akun login berbasis NIM</p>
+          <h1 className="text-2xl font-bold tracking-tight">Mahasiswa & Akun</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Kelola data anggota LCC sekaligus akun login mahasiswa berbasis NIM</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => openAttendancePdf('preview')} size="sm">
@@ -271,7 +292,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
           </Button>
           <Button variant="outline" onClick={() => openAttendancePdf('download')} size="sm">
             <FileDown className="w-4 h-4 mr-2" />
-            Download PDF
+            Unduh PDF
           </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)} size="sm">
             <Upload className="w-4 h-4 mr-2" />
@@ -279,7 +300,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
           </Button>
           <Button onClick={() => setAddOpen(true)} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            Tambah Mahasiswa
+            Tambah Akun Mahasiswa
           </Button>
         </div>
       </div>
@@ -295,11 +316,17 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground font-medium">Total</p>
             <p className="text-2xl font-bold mt-1">{data.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium">Akun Aktif</p>
+            <p className="text-2xl font-bold mt-1">{totalActiveAccounts}</p>
           </CardContent>
         </Card>
         <Card>
@@ -366,7 +393,8 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">NIM</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Prodi</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Kelas LCC</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground w-24">Aksi</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Akun</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground w-28">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -386,7 +414,31 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
+                        {m.user_id ? (
+                          <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                            Siap Login
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            Belum Dibuat
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
+                          {!m.user_id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-7 h-7 text-primary"
+                              onClick={() => handleSyncAccount(m)}
+                              aria-label={`Buat akun login untuk ${m.nama}`}
+                              title="Buat akun login mahasiswa"
+                              disabled={isPending}
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => openEdit(m)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
@@ -412,8 +464,8 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Tambah Mahasiswa</DialogTitle>
-            <DialogDescription>Tambahkan data anggota baru dan buat akun login otomatis dari NIM</DialogDescription>
+            <DialogTitle>Tambah Akun Mahasiswa</DialogTitle>
+            <DialogDescription>Tambahkan data anggota baru dan buat akun login mahasiswa otomatis dari NIM</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">

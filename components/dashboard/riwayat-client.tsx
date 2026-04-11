@@ -119,32 +119,14 @@ export default function RiwayatClient({ initialData }: { initialData: Absensi[] 
   }
 
   function exportPDF() {
-    const doc = `
-LAPORAN RIWAYAT ABSENSI
-LCC - Sistem Absensi Kelas
-Generated: ${new Date().toLocaleString('id-ID')}
+    const params = new URLSearchParams()
 
-================================================================================
+    if (filterKelas !== 'all') {
+      params.set('kelas', filterKelas)
+    }
 
-${filteredData.map(a =>
-      `${a.nama_mahasiswa} | ${a.kelas} | Pertemuan ${a.pertemuan} | ${a.tanggal} | ${a.status}`
-    ).join('\n')}
-
-================================================================================
-Total Records: ${filteredData.length}
-Status Summary:
-- Hadir: ${filteredData.filter(a => a.status === 'Hadir').length}
-- Izin: ${filteredData.filter(a => a.status === 'Izin').length}
-- Alfa: ${filteredData.filter(a => a.status === 'Alfa').length}
-`.trim()
-
-    const element = document.createElement('a')
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(doc))
-    element.setAttribute('download', `riwayat-absensi-${new Date().toISOString().split('T')[0]}.txt`)
-    element.style.display = 'none'
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
+    params.set('download', '1')
+    window.open(`/api/reports/history?${params.toString()}`, '_blank', 'noopener,noreferrer')
   }
 
   function exportCSV() {
@@ -183,7 +165,7 @@ Status Summary:
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportPDF} disabled={data.length === 0}>
             <Download className="w-4 h-4" />
-            Export TXT
+            Export PDF
           </Button>
           <Button variant="outline" size="sm" onClick={exportCSV} disabled={data.length === 0}>
             <Download className="w-4 h-4" />
