@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
-import { addMahasiswa, updateMahasiswa, deleteMahasiswa, importMahasiswaFromExcel, syncMahasiswaAccount } from '@/lib/actions'
+import { addMahasiswaAction, updateMahasiswa, deleteMahasiswa, importMahasiswaFromExcel, syncMahasiswaAccountAction } from '@/lib/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -98,18 +98,19 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     setActionSuccess(null)
 
     startTransition(async () => {
-      try {
-        const result = await syncMahasiswaAccount(mahasiswa.id)
-        setData((prev) => prev.map((item) => (
-          item.id === mahasiswa.id
-            ? { ...item, user_id: result.member.user_id, nim: result.member.nim }
-            : item
-        )))
-        setActionSuccess(`Akun mahasiswa untuk ${mahasiswa.nama} siap digunakan. Password default tetap NIM.`)
-      } catch (error) {
-        console.error('Error syncing mahasiswa account:', error)
-        setActionError(getErrorMessage(error))
+      const result = await syncMahasiswaAccountAction(mahasiswa.id)
+
+      if (!result.success) {
+        setActionError(result.error)
+        return
       }
+
+      setData((prev) => prev.map((item) => (
+        item.id === mahasiswa.id
+          ? { ...item, user_id: result.data.member.user_id, nim: result.data.member.nim }
+          : item
+      )))
+      setActionSuccess(`Akun mahasiswa untuk ${mahasiswa.nama} siap digunakan. Password default tetap NIM.`)
     })
   }
 
@@ -119,19 +120,20 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     setActionSuccess(null)
 
     startTransition(async () => {
-      try {
-        const created = await addMahasiswa(addNama.trim(), addKelas, addProdi, addNim.trim())
-        setData(prev => [...prev, created as Mahasiswa])
-        setAddNama('')
-        setAddNim('')
-        setAddKelas('Graphic Design')
-        setAddProdi('Manajemen Informatika')
-        setAddOpen(false)
-        setActionSuccess('Anggota berhasil ditambahkan. Password default login adalah NIM.')
-      } catch (error) {
-        console.error('Error adding mahasiswa:', error)
-        setActionError(getErrorMessage(error))
+      const result = await addMahasiswaAction(addNama.trim(), addKelas, addProdi, addNim.trim())
+
+      if (!result.success) {
+        setActionError(result.error)
+        return
       }
+
+      setData(prev => [...prev, result.data])
+      setAddNama('')
+      setAddNim('')
+      setAddKelas('Graphic Design')
+      setAddProdi('Manajemen Informatika')
+      setAddOpen(false)
+      setActionSuccess('Anggota berhasil ditambahkan. Password default login adalah NIM.')
     })
   }
 

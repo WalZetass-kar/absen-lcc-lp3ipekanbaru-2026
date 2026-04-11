@@ -6,12 +6,37 @@ import type { Kelas, Prodi, StatusAbsensi, BadgeType } from './types'
 import { ensureCertificateRecord } from './certificates'
 import { ValidationError, validateNama, validateEmail, validatePassword, validateTanggal, validatePertemuan } from './errors'
 import { deleteMemberAuthUser, ensureMemberAuthUser, getMemberAuthFlags, normalizeNim } from './member-auth'
+import type { Mahasiswa } from './types'
 
 type CreateMahasiswaInput = {
   kelas: Kelas
   nama: string
   nim: string
   prodi: Prodi
+}
+
+type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string }
+
+function getActionErrorMessage(error: unknown) {
+  if (error instanceof ValidationError) {
+    return error.message
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('Missing Supabase environment variable: SUPABASE_SERVICE_ROLE_KEY')) {
+      return 'Konfigurasi server belum lengkap. Isi SUPABASE_SERVICE_ROLE_KEY agar akun mahasiswa bisa dibuat.'
+    }
+
+    if (error.message.includes('Missing Supabase environment variable: STUDENT_SESSION_SECRET')) {
+      return 'Konfigurasi server belum lengkap. Isi STUDENT_SESSION_SECRET agar sesi login mahasiswa dapat dipakai.'
+    }
+
+    return error.message
+  }
+
+  return 'Terjadi kesalahan pada server. Silakan coba lagi.'
 }
 
 async function createMahasiswaWithAccount(
@@ -142,6 +167,27 @@ export async function addMahasiswa(nama: string, kelas: Kelas, prodi: Prodi, nim
   })
 }
 
+export async function addMahasiswaAction(
+  nama: string,
+  kelas: Kelas,
+  prodi: Prodi,
+  nim?: string,
+): Promise<ActionResult<Mahasiswa>> {
+  try {
+    const created = await addMahasiswa(nama, kelas, prodi, nim)
+    return {
+      success: true,
+      data: created as Mahasiswa,
+    }
+  } catch (error) {
+    console.error('Error adding mahasiswa:', error)
+    return {
+      success: false,
+      error: getActionErrorMessage(error),
+    }
+  }
+}
+
 export async function syncMahasiswaAccount(id: string) {
   const supabase = await createClient()
   const { data: mahasiswa, error: mahasiswaError } = await supabase
@@ -187,6 +233,27 @@ export async function syncMahasiswaAccount(id: string) {
     created: authUser.created,
     email: authUser.email,
     member: updatedMahasiswa,
+  }
+}
+
+export async function syncMahasiswaAccountAction(
+  id: string,
+): Promise<ActionResult<{ created: boolean; email: string; member: Mahasiswa }>> {
+  try {
+    const result = await syncMahasiswaAccount(id)
+    return {
+      success: true,
+      data: {
+        ...result,
+        member: result.member as Mahasiswa,
+      },
+    }
+  } catch (error) {
+    console.error('Error syncing mahasiswa account:', error)
+    return {
+      success: false,
+      error: getActionErrorMessage(error),
+    }
   }
 }
 
