@@ -116,10 +116,10 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           {/* Avatar Circle */}
           <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 transition-all duration-500 ${
             isDragging
-              ? 'border-teal-400 shadow-xl shadow-teal-500/30'
+              ? 'border-sky-400 shadow-xl shadow-blue-500/30'
               : previewUrl
                 ? 'border-amber-400/60 shadow-lg shadow-amber-500/20'
-                : 'border-white/10 group-hover:border-teal-400/40 group-hover:shadow-lg group-hover:shadow-teal-500/15'
+                : 'border-white/10 group-hover:border-sky-400/40 group-hover:shadow-lg group-hover:shadow-blue-500/15'
           }`}>
             {currentPhoto ? (
               <img
@@ -128,8 +128,8 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-teal-500/20 to-cyan-600/20 flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-bold text-teal-300/70">{initials}</span>
+              <div className="w-full h-full bg-gradient-to-br from-sky-500/20 to-blue-600/20 flex items-center justify-center">
+                <span className="text-3xl sm:text-4xl font-bold text-sky-300/70">{initials}</span>
               </div>
             )}
           </div>
@@ -140,7 +140,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           </div>
 
           {/* Edit Badge */}
-          <div className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-teal-500 border-3 border-[#070b14] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+          <div className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-sky-500 border-3 border-[#070b14] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
             <Camera className="w-4 h-4 text-white" />
           </div>
 
@@ -185,7 +185,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 transition-all duration-300"
+            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300"
           >
             {isSaving ? (
               <>

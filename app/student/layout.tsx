@@ -106,9 +106,11 @@ function StudentLayoutInner({
         {/* Sidebar Header */}
         <div className="p-6 border-b border-border">
           <Link href="/student/dashboard" className="flex items-center gap-2.5 font-bold text-lg group">
-            <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-white shadow-sm">
-              <GraduationCap className="w-5 h-5" />
-            </div>
+            <img
+              src="/lp3i-logo.png"
+              alt="LP3I"
+              className="w-9 h-9 rounded-lg object-contain"
+            />
             <span className="text-foreground tracking-wide">LCC</span>
           </Link>
           <p className="text-xs text-muted-foreground mt-1.5">Politeknik LP3I Pekanbaru</p>
