@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { createAdmin, deleteAdmin } from '@/lib/actions'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,14 +19,20 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react'
 import type { Profile } from '@/lib/types'
+import { createClient } from '@/lib/supabase/client'
+import { validateEmail, validateNama, validatePassword } from '@/lib/errors'
 
 export default function AdminClient({
   initialAdmins,
   currentUserId,
+  currentUserName,
 }: {
   initialAdmins: Profile[]
   currentUserId: string
+  currentUserName: string
 }) {
+  const router = useRouter()
+  const [supabase] = useState(() => createClient())
   const [admins, setAdmins] = useState<Profile[]>(initialAdmins)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -40,21 +46,73 @@ export default function AdminClient({
     role: 'admin' as 'admin' | 'super_admin',
   })
 
+  async function writeActivityLog(action: string, detail: string) {
+    const { error } = await supabase.from('activity_log').insert({
+      admin_id: currentUserId,
+      admin_nama: currentUserName,
+      action,
+      entity: 'ADMIN',
+      detail,
+    })
+
+    if (error) {
+      console.error('Failed to write activity log:', error)
+    }
+  }
+
   function handleAdd() {
     if (!form.nama.trim() || !form.email.trim() || !form.password.trim()) return
     setError(null)
     startTransition(async () => {
       try {
-        await createAdmin(form.email, form.password, form.nama, form.role)
+        const normalizedEmail = form.email.trim().toLowerCase()
+        const normalizedNama = form.nama.trim()
+
+        validateNama(normalizedNama)
+        validateEmail(normalizedEmail)
+        validatePassword(form.password)
+
+        const { data: existingAdmin, error: existingAdminError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', normalizedEmail)
+          .maybeSingle()
+
+        if (existingAdminError) {
+          throw new Error(existingAdminError.message)
+        }
+
+        if (existingAdmin) {
+          throw new Error('Email sudah terdaftar')
+        }
+
+        const { data: createdUserId, error: createError } = await supabase.rpc('create_admin_user', {
+          p_email: normalizedEmail,
+          p_password: form.password,
+          p_nama: normalizedNama,
+          p_role: form.role,
+        })
+
+        if (createError) {
+          throw new Error(createError.message || 'Gagal menambah admin')
+        }
+
+        if (typeof createdUserId !== 'string' || createdUserId.length === 0) {
+          throw new Error('ID admin baru tidak valid')
+        }
+
+        await writeActivityLog('CREATE_ADMIN', `Created ${form.role} account: ${normalizedEmail}`)
+
         setAdmins(prev => [...prev, {
-          id: crypto.randomUUID(),
-          nama: form.nama,
-          email: form.email,
+          id: createdUserId,
+          nama: normalizedNama,
+          email: normalizedEmail,
           role: form.role,
           created_at: new Date().toISOString(),
         }])
         setForm({ nama: '', email: '', password: '', role: 'admin' })
         setAddOpen(false)
+        router.refresh()
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Gagal menambah admin')
       }
@@ -65,9 +123,28 @@ export default function AdminClient({
     if (!deleteId) return
     startTransition(async () => {
       try {
-        await deleteAdmin(deleteId)
+        const adminToDelete = admins.find(admin => admin.id === deleteId)
+
+        const { error: deleteError } = await supabase.rpc('delete_admin_user', {
+          p_user_id: deleteId,
+        })
+
+        if (deleteError) {
+          if (deleteError.code === 'PGRST202') {
+            throw new Error('Fungsi hapus admin belum tersedia di database. Jalankan migrasi Supabase terbaru terlebih dulu.')
+          }
+
+          throw new Error(deleteError.message || 'Gagal menghapus admin')
+        }
+
+        await writeActivityLog(
+          'DELETE_ADMIN',
+          `Deleted admin account: ${adminToDelete?.email ?? deleteId}`,
+        )
+
         setAdmins(prev => prev.filter(a => a.id !== deleteId))
         setDeleteId(null)
+        router.refresh()
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Gagal menghapus admin')
       }

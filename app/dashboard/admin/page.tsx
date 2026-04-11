@@ -11,7 +11,7 @@ export default async function AdminPage() {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, nama')
     .eq('id', user.id)
     .single()
 
@@ -25,7 +25,13 @@ export default async function AdminPage() {
   try {
     const admins = await getAdmins()
 
-    return <AdminClient initialAdmins={admins ?? []} currentUserId={user.id} />
+    return (
+      <AdminClient
+        initialAdmins={admins ?? []}
+        currentUserId={user.id}
+        currentUserName={profile.nama}
+      />
+    )
   } catch (error) {
     console.error('Failed to render /dashboard/admin:', error)
 
