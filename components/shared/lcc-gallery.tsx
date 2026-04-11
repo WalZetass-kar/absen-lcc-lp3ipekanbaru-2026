@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 interface GalleryPhoto {
@@ -17,33 +17,45 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
   if (photos.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
-          <Calendar className="w-8 h-8 text-blue-400/50" />
+        <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-white/[0.03] flex items-center justify-center border border-white/[0.05]">
+          <Calendar className="w-8 h-8 text-teal-400/40" />
         </div>
-        <p className="text-blue-200/50 text-lg">Belum ada dokumentasi kegiatan</p>
-        <p className="text-blue-300/30 text-sm mt-1">Foto-foto kegiatan akan ditampilkan di sini</p>
+        <p className="text-slate-400 text-lg">Belum ada dokumentasi kegiatan</p>
+        <p className="text-slate-600 text-sm mt-1">Foto-foto kegiatan akan ditampilkan di sini</p>
       </div>
     )
   }
 
   const openLightbox = (index: number) => setSelectedIndex(index)
-  const closeLightbox = () => setSelectedIndex(null)
-  const goNext = () => {
+  const closeLightbox = useCallback(() => setSelectedIndex(null), [])
+  const goNext = useCallback(() => {
     if (selectedIndex !== null) setSelectedIndex((selectedIndex + 1) % photos.length)
-  }
-  const goPrev = () => {
+  }, [selectedIndex, photos.length])
+  const goPrev = useCallback(() => {
     if (selectedIndex !== null) setSelectedIndex((selectedIndex - 1 + photos.length) % photos.length)
-  }
+  }, [selectedIndex, photos.length])
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (selectedIndex === null) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox()
+      if (e.key === 'ArrowRight') goNext()
+      if (e.key === 'ArrowLeft') goPrev()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedIndex, closeLightbox, goNext, goPrev])
 
   return (
     <>
       {/* Gallery Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
         {photos.map((photo, index) => (
           <button
             key={photo.id}
             onClick={() => openLightbox(index)}
-            className="group relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer border border-white/5 hover:border-blue-400/30 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10"
+            className="group relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer border border-white/[0.04] hover:border-teal-400/25 transition-all duration-500 hover:shadow-2xl hover:shadow-teal-500/[0.08] hover:-translate-y-1"
           >
             <img
               src={photo.imageUrl}
@@ -59,7 +71,7 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
             {/* Content Overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
               <p className="text-white font-medium text-sm line-clamp-2">{photo.judul}</p>
-              <p className="text-blue-200/70 text-xs mt-1 flex items-center gap-1">
+              <p className="text-teal-200/70 text-xs mt-1.5 flex items-center gap-1.5">
                 <Calendar className="w-3 h-3" />
                 {new Date(photo.tanggal).toLocaleDateString('id-ID', {
                   day: 'numeric',
@@ -80,7 +92,7 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
         >
           <button
             onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors z-10"
+            className="absolute top-4 right-4 text-white/60 hover:text-white p-2.5 hover:bg-white/10 rounded-xl transition-all duration-300 z-10"
             aria-label="Close"
           >
             <X className="w-6 h-6" />
@@ -90,14 +102,14 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goPrev() }}
-                className="absolute left-4 text-white/70 hover:text-white p-3 hover:bg-white/10 rounded-full transition-colors z-10"
+                className="absolute left-4 text-white/60 hover:text-white p-3 hover:bg-white/10 rounded-xl transition-all duration-300 z-10"
                 aria-label="Previous"
               >
                 <ChevronLeft className="w-8 h-8" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); goNext() }}
-                className="absolute right-4 text-white/70 hover:text-white p-3 hover:bg-white/10 rounded-full transition-colors z-10"
+                className="absolute right-4 text-white/60 hover:text-white p-3 hover:bg-white/10 rounded-xl transition-all duration-300 z-10"
                 aria-label="Next"
               >
                 <ChevronRight className="w-8 h-8" />
@@ -112,14 +124,14 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
             <img
               src={photos[selectedIndex].imageUrl}
               alt={photos[selectedIndex].judul}
-              className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl"
+              className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl"
             />
-            <div className="mt-4 text-center">
+            <div className="mt-5 text-center">
               <h3 className="text-white font-semibold text-lg">{photos[selectedIndex].judul}</h3>
               {photos[selectedIndex].deskripsi && (
-                <p className="text-blue-200/60 text-sm mt-1 max-w-lg">{photos[selectedIndex].deskripsi}</p>
+                <p className="text-slate-400 text-sm mt-1.5 max-w-lg">{photos[selectedIndex].deskripsi}</p>
               )}
-              <p className="text-blue-300/40 text-xs mt-2">
+              <p className="text-slate-600 text-xs mt-3 font-medium">
                 {new Date(photos[selectedIndex].tanggal).toLocaleDateString('id-ID', {
                   weekday: 'long',
                   day: 'numeric',
@@ -127,7 +139,7 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
                   year: 'numeric',
                 })}
               </p>
-              <p className="text-white/30 text-xs mt-2">
+              <p className="text-white/20 text-xs mt-2 font-mono">
                 {selectedIndex + 1} / {photos.length}
               </p>
             </div>

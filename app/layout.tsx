@@ -3,8 +3,8 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LCC Admin - Sistem Absensi',
-  description: 'Sistem manajemen absensi kelas LCC Desain dan Web Design',
+  title: 'LCC - Politeknik LP3I Pekanbaru',
+  description: 'Learning Coffee Community — Komunitas pembelajaran Graphic Design & Web Design di Politeknik LP3I Pekanbaru',
   generator: 'v0.app',
   icons: {
     icon: [
