@@ -25,6 +25,11 @@ function getAuthErrorMessage(error: { message?: string } | null | undefined) {
   return error?.message?.toLowerCase() ?? ''
 }
 
+function isMemberAuthUser(user: User) {
+  return user.app_metadata?.account_type === 'member'
+    || user.email?.toLowerCase().endsWith(`@${MEMBER_EMAIL_DOMAIN}`) === true
+}
+
 export function normalizeNim(value: string) {
   const normalized = value.trim()
 
@@ -70,6 +75,70 @@ async function findAuthUserByEmail(email: string) {
 
     page += 1
   }
+}
+
+export async function listMemberAuthUsers() {
+  const admin = createAdminClient()
+  const users: User[] = []
+  let page = 1
+
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    })
+
+    if (error) {
+      throw new Error(error.message || 'Gagal membaca data user Supabase Auth')
+    }
+
+    const currentUsers = (data.users ?? []).filter(isMemberAuthUser)
+    users.push(...currentUsers)
+
+    if ((data.users ?? []).length < 200) {
+      return users
+    }
+
+    page += 1
+  }
+}
+
+export async function getMemberAuthUserIdByNim(nim: string) {
+  const normalizedNim = normalizeNim(nim)
+  const email = buildMemberEmail(normalizedNim)
+  const user = await findAuthUserByEmail(email)
+
+  return user?.id ?? null
+}
+
+export async function getMemberAuthUserIdsByNim(nims: string[]) {
+  const normalizedNims = Array.from(new Set(
+    nims
+      .map((nim) => nim?.trim())
+      .filter((nim): nim is string => Boolean(nim))
+      .map((nim) => normalizeNim(nim)),
+  ))
+
+  if (normalizedNims.length === 0) {
+    return new Map<string, string>()
+  }
+
+  const users = await listMemberAuthUsers()
+  const userIdsByNim = new Map<string, string>()
+
+  for (const user of users) {
+    const userNim = typeof user.user_metadata?.nim === 'string'
+      ? normalizeNim(user.user_metadata.nim)
+      : typeof user.email === 'string'
+        ? normalizeNim(user.email.split('@')[0] ?? '')
+        : null
+
+    if (userNim && normalizedNims.includes(userNim)) {
+      userIdsByNim.set(userNim, user.id)
+    }
+  }
+
+  return userIdsByNim
 }
 
 export async function getAuthUserById(userId: string) {
