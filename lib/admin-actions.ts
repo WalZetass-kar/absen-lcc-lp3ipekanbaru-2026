@@ -422,3 +422,50 @@ export async function deactivateQRCode(qr_code_id: string) {
   if (error) throw error
   revalidatePath('/dashboard/qr-management')
 }
+
+// ─── Public Data (no auth required) ──────────────────────
+export async function getPublicDocumentation(limit: number = 12) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('documentation')
+    .select('id, judul, deskripsi, file_url, tanggal, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  
+  if (error) {
+    console.error('Error fetching public documentation:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function getPublicActivityDocumentation(limit: number = 12) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('activity_documentation')
+    .select('id, judul, deskripsi, foto_url, tanggal_kegiatan, created_at')
+    .order('tanggal_kegiatan', { ascending: false })
+    .limit(limit)
+  
+  if (error) {
+    console.error('Error fetching public activity documentation:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function getPublicAnnouncements(limit: number = 5) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('id, judul, isi, published_at')
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .limit(limit)
+  
+  if (error) {
+    console.error('Error fetching public announcements:', error)
+    return []
+  }
+  return data ?? []
+}
