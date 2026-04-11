@@ -10,6 +10,7 @@ import { adminLogout } from '@/lib/auth-actions'
 import {
   LayoutDashboard,
   Users,
+  User,
   ClipboardCheck,
   ShieldCheck,
   BookOpen,
@@ -17,6 +18,8 @@ import {
   Images,
   FileCheck2,
   History,
+  ClipboardList,
+  Award,
   LogOut,
 } from 'lucide-react'
 import type { Profile } from '@/lib/types'
@@ -27,7 +30,11 @@ const navItems = [
   { href: '/dashboard/absensi', label: 'Absensi', icon: ClipboardCheck },
   { href: '/dashboard/qr-management', label: 'QR & Izin', icon: FileCheck2 },
   { href: '/dashboard/rekap', label: 'Rekap', icon: History },
+  { href: '/dashboard/riwayat', label: 'Riwayat', icon: History },
+  { href: '/dashboard/catatan', label: 'Catatan', icon: ClipboardList },
   { href: '/dashboard/dokumentasi', label: 'Dokumentasi', icon: Images },
+  { href: '/dashboard/sertifikat', label: 'Sertifikat', icon: Award },
+  { href: '/dashboard/profil', label: 'Profil', icon: User },
 ]
 
 const adminOnlyItems = [
