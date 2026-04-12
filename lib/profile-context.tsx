@@ -2,67 +2,92 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 
-const STORAGE_KEY = 'lcc_profile_photo'
-
 interface ProfileContextType {
-  /** Base64 Data URL of the profile photo, or null if none set */
+  /** URL of the profile photo, or null if none set */
   profilePhoto: string | null
-  /** Set a new profile photo (pass base64 data URL) */
-  setProfilePhoto: (photo: string | null) => void
-  /** Remove the current profile photo */
-  removeProfilePhoto: () => void
-  /** Whether the context has loaded from localStorage */
+  /** Upload a new profile photo file to the server */
+  uploadProfilePhoto: (file: File) => Promise<{ success: boolean; error?: string }>
+  /** Remove the current profile photo from the server */
+  removeProfilePhoto: () => Promise<void>
+  /** Whether the context has loaded the photo from the server */
   isLoaded: boolean
+  /** Whether an upload/delete operation is in progress */
+  isUploading: boolean
 }
 
 const ProfileContext = createContext<ProfileContextType>({
   profilePhoto: null,
-  setProfilePhoto: () => {},
-  removeProfilePhoto: () => {},
+  uploadProfilePhoto: async () => ({ success: false }),
+  removeProfilePhoto: async () => {},
   isLoaded: false,
+  isUploading: false,
 })
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profilePhoto, setProfilePhotoState] = useState<string | null>(null)
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
-  // Load from localStorage on mount
+  // Load photo URL from server on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        setProfilePhotoState(stored)
+    async function fetchPhoto() {
+      try {
+        const res = await fetch('/api/profile-photo')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.url) {
+            setProfilePhoto(data.url)
+          }
+        }
+      } catch {
+        // Silently fail — no photo
       }
-    } catch {
-      // localStorage not available (SSR, private browsing, etc.)
+      setIsLoaded(true)
     }
-    setIsLoaded(true)
+
+    fetchPhoto()
   }, [])
 
-  const setProfilePhoto = useCallback((photo: string | null) => {
-    setProfilePhotoState(photo)
+  const uploadProfilePhoto = useCallback(async (file: File): Promise<{ success: boolean; error?: string }> => {
+    setIsUploading(true)
     try {
-      if (photo) {
-        localStorage.setItem(STORAGE_KEY, photo)
-      } else {
-        localStorage.removeItem(STORAGE_KEY)
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/profile-photo', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Gagal mengunggah foto' }
       }
+
+      setProfilePhoto(data.url)
+      return { success: true }
     } catch {
-      // Ignore storage errors
+      return { success: false, error: 'Terjadi kesalahan saat mengunggah foto' }
+    } finally {
+      setIsUploading(false)
     }
   }, [])
 
-  const removeProfilePhoto = useCallback(() => {
-    setProfilePhotoState(null)
+  const removeProfilePhoto = useCallback(async () => {
+    setIsUploading(true)
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      await fetch('/api/profile-photo', { method: 'DELETE' })
+      setProfilePhoto(null)
     } catch {
       // Ignore
+    } finally {
+      setIsUploading(false)
     }
   }, [])
 
   return (
-    <ProfileContext.Provider value={{ profilePhoto, setProfilePhoto, removeProfilePhoto, isLoaded }}>
+    <ProfileContext.Provider value={{ profilePhoto, uploadProfilePhoto, removeProfilePhoto, isLoaded, isUploading }}>
       {children}
     </ProfileContext.Provider>
   )

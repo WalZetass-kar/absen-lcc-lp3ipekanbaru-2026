@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useProfile } from '@/lib/profile-context'
-import { Camera, Upload, X, Check, Trash2, AlertCircle, ImageIcon } from 'lucide-react'
+import { Camera, X, Check, Trash2, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png']
@@ -13,8 +13,9 @@ interface ProfilePhotoUploadProps {
 }
 
 export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUploadProps) {
-  const { profilePhoto, setProfilePhoto, removeProfilePhoto } = useProfile()
+  const { profilePhoto, uploadProfilePhoto, removeProfilePhoto, isUploading } = useProfile()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -45,6 +46,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
       return
     }
 
+    setSelectedFile(file)
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreviewUrl(e.target?.result as string)
@@ -80,23 +82,32 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
   }, [])
 
   const handleSave = async () => {
-    if (!previewUrl) return
+    if (!selectedFile) return
     setIsSaving(true)
-    // Simulate a small delay for UX feedback
-    await new Promise((r) => setTimeout(r, 500))
-    setProfilePhoto(previewUrl)
-    setPreviewUrl(null)
+    setError(null)
+
+    const result = await uploadProfilePhoto(selectedFile)
+
+    if (!result.success) {
+      setError(result.error || 'Gagal menyimpan foto')
+    } else {
+      setPreviewUrl(null)
+      setSelectedFile(null)
+    }
+
     setIsSaving(false)
   }
 
   const handleCancel = () => {
     setPreviewUrl(null)
+    setSelectedFile(null)
     setError(null)
   }
 
-  const handleRemove = () => {
-    removeProfilePhoto()
+  const handleRemove = async () => {
+    await removeProfilePhoto()
     setPreviewUrl(null)
+    setSelectedFile(null)
     setError(null)
   }
 
@@ -116,10 +127,10 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           {/* Avatar Circle */}
           <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 transition-all duration-500 ${
             isDragging
-              ? 'border-sky-400 shadow-xl shadow-blue-500/30'
+              ? 'border-blue-400 shadow-xl shadow-blue-500/20'
               : previewUrl
-                ? 'border-amber-400/60 shadow-lg shadow-amber-500/20'
-                : 'border-white/10 group-hover:border-sky-400/40 group-hover:shadow-lg group-hover:shadow-blue-500/15'
+                ? 'border-amber-400/60 shadow-lg shadow-amber-500/10'
+                : 'border-slate-200 group-hover:border-blue-300 group-hover:shadow-lg group-hover:shadow-blue-500/10'
           }`}>
             {currentPhoto ? (
               <img
@@ -128,8 +139,8 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-sky-500/20 to-blue-600/20 flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-bold text-sky-300/70">{initials}</span>
+              <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+                <span className="text-3xl sm:text-4xl font-bold text-blue-300">{initials}</span>
               </div>
             )}
           </div>
@@ -140,7 +151,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           </div>
 
           {/* Edit Badge */}
-          <div className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-sky-500 border-3 border-[#070b14] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+          <div className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-blue-500 border-[3px] border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
             <Camera className="w-4 h-4 text-white" />
           </div>
 
@@ -171,10 +182,10 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
 
       {/* Error Message */}
       {error && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-400">{error}</p>
+            <p className="text-sm font-medium text-red-600">{error}</p>
           </div>
         </div>
       )}
@@ -184,12 +195,12 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
         <div className="flex items-center justify-center gap-3">
           <Button
             onClick={handleSave}
-            disabled={isSaving}
-            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300"
+            disabled={isSaving || isUploading}
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300"
           >
             {isSaving ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Menyimpan...
               </>
             ) : (
@@ -202,6 +213,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           <Button
             variant="ghost"
             onClick={handleCancel}
+            disabled={isSaving}
             className="text-muted-foreground hover:text-foreground border border-border"
           >
             <X className="w-4 h-4 mr-2" />
@@ -216,10 +228,20 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
           <Button
             variant="ghost"
             onClick={handleRemove}
-            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-sm"
+            disabled={isUploading}
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 text-sm"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Hapus Foto Profil
+            {isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Menghapus...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Hapus Foto Profil
+              </>
+            )}
           </Button>
         </div>
       )}
