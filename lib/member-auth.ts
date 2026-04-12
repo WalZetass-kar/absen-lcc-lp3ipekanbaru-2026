@@ -37,6 +37,14 @@ export function normalizeNim(value: string) {
     throw new ValidationError('NIM wajib diisi')
   }
 
+  if (normalized.length < 3) {
+    throw new ValidationError('NIM minimal 3 karakter')
+  }
+
+  if (normalized.length > 50) {
+    throw new ValidationError('NIM maksimal 50 karakter')
+  }
+
   if (!/^[a-zA-Z0-9._-]+$/.test(normalized)) {
     throw new ValidationError('NIM hanya boleh berisi huruf, angka, titik, garis bawah, atau tanda minus')
   }
@@ -47,6 +55,7 @@ export function normalizeNim(value: string) {
 export function buildMemberEmail(nim: string) {
   return `${normalizeNim(nim)}@${MEMBER_EMAIL_DOMAIN}`
 }
+
 
 async function findAuthUserByEmail(email: string) {
   const admin = createAdminClient()

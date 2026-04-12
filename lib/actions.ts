@@ -7,6 +7,7 @@ import { ensureCertificateRecord } from './certificates'
 import { ValidationError, validateNama, validateEmail, validatePassword, validateTanggal, validatePertemuan } from './errors'
 import { deleteMemberAuthUser, ensureMemberAuthUser, getMemberAuthFlags, normalizeNim } from './member-auth'
 import type { Mahasiswa } from './types'
+import { createAdminClient } from './supabase/admin'
 
 type CreateMahasiswaInput = {
   kelas: Kelas
@@ -46,15 +47,20 @@ async function createMahasiswaWithAccount(
   validateNama(input.nama)
 
   const normalizedNim = normalizeNim(input.nim)
-  const supabase = await createClient()
 
-  const { data: existingMember, error: lookupError } = await supabase
+  // Gunakan admin client (service_role) agar bypass RLS — INSERT/UPDATE
+  // ke tabel mahasiswa harus selalu berhasil dari sisi server.
+  const admin = createAdminClient()
+
+  // Cek duplikasi NIM sebelum insert
+  const { data: existingMember, error: lookupError } = await admin
     .from('mahasiswa')
     .select('id')
     .eq('nim', normalizedNim)
     .maybeSingle()
 
   if (lookupError) {
+    console.error('[createMahasiswaWithAccount] Gagal cek duplikasi NIM:', lookupError)
     throw lookupError
   }
 
@@ -62,7 +68,8 @@ async function createMahasiswaWithAccount(
     throw new ValidationError('NIM sudah terdaftar')
   }
 
-  const { data: insertedMember, error: insertError } = await supabase
+  // Insert data mahasiswa terlebih dahulu
+  const { data: insertedMember, error: insertError } = await admin
     .from('mahasiswa')
     .insert({
       kelas: input.kelas,
@@ -74,6 +81,7 @@ async function createMahasiswaWithAccount(
     .single()
 
   if (insertError || !insertedMember) {
+    console.error('[createMahasiswaWithAccount] Gagal insert mahasiswa:', insertError)
     throw insertError ?? new Error('Gagal menyimpan data anggota')
   }
 
@@ -81,6 +89,7 @@ async function createMahasiswaWithAccount(
   let createdAuthUser = false
 
   try {
+    // Buat atau sinkronkan akun Auth (email: nim@mcc.local, password: NIM)
     const authUser = await ensureMemberAuthUser({
       memberId: insertedMember.id,
       mustChangePassword: true,
@@ -92,16 +101,22 @@ async function createMahasiswaWithAccount(
     authUserId = authUser.userId
     createdAuthUser = authUser.created
 
-    const { data: linkedMember, error: linkError } = await supabase
+    if (!authUserId) {
+      throw new Error('user_id dari Supabase Auth tidak valid setelah pembuatan akun')
+    }
+
+    // Link user_id Auth ke baris mahasiswa menggunakan admin client
+    const { data: linkedMember, error: linkError } = await admin
       .from('mahasiswa')
       .update({
-        user_id: authUser.userId,
+        user_id: authUserId,
       })
       .eq('id', insertedMember.id)
       .select('*')
       .single()
 
     if (linkError || !linkedMember) {
+      console.error('[createMahasiswaWithAccount] Gagal link user_id ke mahasiswa:', linkError)
       throw linkError ?? new Error('Gagal menghubungkan akun anggota dengan data mahasiswa')
     }
 
@@ -112,13 +127,16 @@ async function createMahasiswaWithAccount(
 
     return linkedMember
   } catch (error) {
-    await supabase.from('mahasiswa').delete().eq('id', insertedMember.id)
+    // Rollback: hapus baris mahasiswa yang sudah dibuat
+    console.error('[createMahasiswaWithAccount] Error saat linking, melakukan rollback:', error)
+    await admin.from('mahasiswa').delete().eq('id', insertedMember.id)
 
+    // Rollback: hapus auth user jika baru dibuat di iterasi ini
     if (createdAuthUser && authUserId) {
       try {
         await deleteMemberAuthUser(authUserId)
       } catch (cleanupError) {
-        console.error('Failed to cleanup auth user after member creation error:', cleanupError)
+        console.error('[createMahasiswaWithAccount] Gagal cleanup auth user saat rollback:', cleanupError)
       }
     }
 
@@ -189,14 +207,17 @@ export async function addMahasiswaAction(
 }
 
 export async function syncMahasiswaAccount(id: string) {
-  const supabase = await createClient()
-  const { data: mahasiswa, error: mahasiswaError } = await supabase
+  // Gunakan admin client untuk membaca dan mengupdate mahasiswa
+  // tanpa hambatan RLS
+  const admin = createAdminClient()
+  const { data: mahasiswa, error: mahasiswaError } = await admin
     .from('mahasiswa')
     .select('*')
     .eq('id', id)
     .single()
 
   if (mahasiswaError || !mahasiswa) {
+    console.error('[syncMahasiswaAccount] Mahasiswa tidak ditemukan:', mahasiswaError)
     throw mahasiswaError ?? new Error('Data mahasiswa tidak ditemukan')
   }
 
@@ -205,6 +226,8 @@ export async function syncMahasiswaAccount(id: string) {
   }
 
   const normalizedNim = normalizeNim(mahasiswa.nim)
+
+  // Buat atau sinkronkan akun Auth
   const authUser = await ensureMemberAuthUser({
     memberId: mahasiswa.id,
     mustChangePassword: true,
@@ -213,7 +236,12 @@ export async function syncMahasiswaAccount(id: string) {
     prodi: mahasiswa.prodi,
   })
 
-  const { data: updatedMahasiswa, error: updateError } = await supabase
+  if (!authUser.userId) {
+    throw new Error('user_id dari Supabase Auth tidak valid setelah sinkronisasi')
+  }
+
+  // Update mahasiswa dengan user_id menggunakan admin client
+  const { data: updatedMahasiswa, error: updateError } = await admin
     .from('mahasiswa')
     .update({
       nim: normalizedNim,
@@ -224,6 +252,7 @@ export async function syncMahasiswaAccount(id: string) {
     .single()
 
   if (updateError || !updatedMahasiswa) {
+    console.error('[syncMahasiswaAccount] Gagal update user_id:', updateError)
     throw updateError ?? new Error('Gagal menghubungkan akun mahasiswa')
   }
 
