@@ -17,7 +17,7 @@ export default function LoginChoicePage() {
             <BookOpen className="w-8 h-8 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Learning Coffee Community</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">LP3I Computer Club</h1>
             <p className="text-sm text-muted-foreground mt-2">Sistem Manajemen Absensi LCC</p>
           </div>
         </div>

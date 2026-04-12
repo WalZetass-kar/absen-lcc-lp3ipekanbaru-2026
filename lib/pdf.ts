@@ -288,7 +288,7 @@ export async function buildCertificatePdf(
   pdf.setTextColor(51, 65, 85)
   pdf.setFont('times', 'normal')
   pdf.setFontSize(13)
-  pdf.text('Learning Coffee Community - Politeknik LP3I Pekanbaru', pageWidth / 2, 43, { align: 'center' })
+  pdf.text('LP3I Computer Club - Politeknik LP3I Pekanbaru', pageWidth / 2, 43, { align: 'center' })
 
   pdf.setFontSize(12)
   pdf.text('Diberikan kepada', pageWidth / 2, 58, { align: 'center' })
@@ -304,7 +304,7 @@ export async function buildCertificatePdf(
   pdf.text(`Program Studi: ${data.prodi} | Kelas LCC: ${data.kelas}`, pageWidth / 2, 90, { align: 'center' })
 
   pdf.text(
-    'atas partisipasi dan kehadiran aktif dalam kegiatan Learning Coffee Community.',
+    'atas partisipasi dan kehadiran aktif dalam kegiatan LP3I Computer Club.',
     pageWidth / 2,
     102,
     { align: 'center' },

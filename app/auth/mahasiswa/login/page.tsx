@@ -58,7 +58,7 @@ export default function MahasiswaLoginPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">LCC Mahasiswa</h1>
-            <p className="text-sm text-slate-500 mt-1">Learning Coffee Community</p>
+            <p className="text-sm text-slate-500 mt-1">LP3I Computer Club</p>
           </div>
         </div>
 
@@ -201,7 +201,7 @@ export default function MahasiswaLoginPage() {
             </a>
           </p>
           <p className="text-xs text-slate-400">
-            © 2026 Learning Coffee Community
+            © 2026 LP3I Computer Club
           </p>
         </div>
       </div>

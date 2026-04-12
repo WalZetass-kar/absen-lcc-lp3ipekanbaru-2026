@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 
 export const metadata = {
-  title: 'Learning Coffee Community - Politeknik LP3I Pekanbaru',
+  title: 'LP3I Computer Club - Politeknik LP3I Pekanbaru',
   description:
     'LCC adalah komunitas pembelajaran interaktif di Politeknik LP3I Pekanbaru yang berfokus pada pengembangan keterampilan Graphic Design dan Web Design.',
 }
@@ -97,10 +97,10 @@ export default async function PublicLCCPage() {
 
           {/* Title */}
           <h1 className="animate-slide-up delay-100 text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.05] tracking-tight">
-            <span className="text-slate-900">Learning</span>
+            <span className="text-slate-900">LP3I</span>
             <br />
             <span className="bg-gradient-to-r from-blue-500 via-blue-600 to-sky-500 bg-clip-text text-transparent">
-              Coffee Community
+              Computer Club
             </span>
           </h1>
 
@@ -177,7 +177,7 @@ export default async function PublicLCCPage() {
             <div>
               <p className="text-slate-500 text-lg leading-relaxed whitespace-pre-wrap">
                 {aboutPage?.konten ||
-                  'Learning Coffee Community (LCC) adalah komunitas pembelajaran interaktif yang bernaung di bawah Politeknik LP3I Pekanbaru. Komunitas ini dirancang untuk mendukung pengembangan keterampilan mahasiswa melalui pendekatan belajar yang kolaboratif, praktis, dan menyenangkan.\n\nLCC berfokus pada dua bidang utama, yaitu Graphic Design dan Web Design, yang diajarkan secara terstruktur dengan bimbingan mentor berpengalaman.'}
+                  'LP3I Computer Club (LCC) adalah komunitas pembelajaran interaktif yang bernaung di bawah Politeknik LP3I Pekanbaru. Komunitas ini dirancang untuk mendukung pengembangan keterampilan mahasiswa melalui pendekatan belajar yang kolaboratif, praktis, dan menyenangkan.\n\nLCC berfokus pada dua bidang utama, yaitu Graphic Design dan Web Design, yang diajarkan secara terstruktur dengan bimbingan mentor berpengalaman.'}
               </p>
             </div>
 
@@ -463,7 +463,7 @@ export default async function PublicLCCPage() {
 
           <div className="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-slate-500 text-xs">
-              &copy; {new Date().getFullYear()} Learning Coffee Community — Politeknik LP3I Pekanbaru. All rights reserved.
+              &copy; {new Date().getFullYear()} LP3I Computer Club — Politeknik LP3I Pekanbaru. All rights reserved.
             </p>
             <p className="text-slate-600 text-xs">
               Developed by <span className="text-blue-400/60 font-medium">WalDevelop-Afk</span>
