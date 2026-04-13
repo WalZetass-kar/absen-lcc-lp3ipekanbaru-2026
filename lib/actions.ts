@@ -20,21 +20,37 @@ type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
 
-function getActionErrorMessage(error: unknown) {
+function getActionErrorMessage(error: unknown): string {
   if (error instanceof ValidationError) {
     return error.message
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('Missing Supabase environment variable: SUPABASE_SERVICE_ROLE_KEY')) {
+    const msg = error.message ?? ''
+
+    if (msg.includes('Missing Supabase environment variable: SUPABASE_SERVICE_ROLE_KEY')) {
       return 'Konfigurasi server belum lengkap. Isi SUPABASE_SERVICE_ROLE_KEY agar akun mahasiswa bisa dibuat.'
     }
 
-    if (error.message.includes('Missing Supabase environment variable: STUDENT_SESSION_SECRET')) {
+    if (msg.includes('Missing Supabase environment variable: STUDENT_SESSION_SECRET')) {
       return 'Konfigurasi server belum lengkap. Isi STUDENT_SESSION_SECRET agar sesi login mahasiswa dapat dipakai.'
     }
 
-    return error.message
+    // Supabase Auth errors often include status codes
+    if (msg.includes('Internal Server Error') || msg.includes('500')) {
+      return 'Terjadi kesalahan internal Supabase Auth. Coba ulangi beberapa saat lagi.'
+    }
+
+    return msg || 'Terjadi kesalahan pada server.'
+  }
+
+  if (typeof error === 'string') {
+    return error
+  }
+
+  // Handle Supabase error objects that aren't standard Error instances
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
   }
 
   return 'Terjadi kesalahan pada server. Silakan coba lagi.'

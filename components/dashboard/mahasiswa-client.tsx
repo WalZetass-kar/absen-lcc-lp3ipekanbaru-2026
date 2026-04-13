@@ -98,19 +98,24 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     setActionSuccess(null)
 
     startTransition(async () => {
-      const result = await syncMahasiswaAccountAction(mahasiswa.id)
+      try {
+        const result = await syncMahasiswaAccountAction(mahasiswa.id)
 
-      if (!result.success) {
-        setActionError(result.error)
-        return
+        if (!result || !result.success) {
+          setActionError(result?.error ?? 'Gagal sinkronisasi akun. Server tidak merespons dengan benar.')
+          return
+        }
+
+        setData((prev) => prev.map((item) => (
+          item.id === mahasiswa.id
+            ? { ...item, user_id: result.data.member.user_id, nim: result.data.member.nim }
+            : item
+        )))
+        setActionSuccess(`Akun mahasiswa untuk ${mahasiswa.nama} siap digunakan. Password default tetap NIM.`)
+      } catch (err) {
+        console.error('handleSyncAccount error:', err)
+        setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan saat sinkronisasi akun.')
       }
-
-      setData((prev) => prev.map((item) => (
-        item.id === mahasiswa.id
-          ? { ...item, user_id: result.data.member.user_id, nim: result.data.member.nim }
-          : item
-      )))
-      setActionSuccess(`Akun mahasiswa untuk ${mahasiswa.nama} siap digunakan. Password default tetap NIM.`)
     })
   }
 
@@ -120,20 +125,25 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     setActionSuccess(null)
 
     startTransition(async () => {
-      const result = await addMahasiswaAction(addNama.trim(), addKelas, addProdi, addNim.trim())
+      try {
+        const result = await addMahasiswaAction(addNama.trim(), addKelas, addProdi, addNim.trim())
 
-      if (!result.success) {
-        setActionError(result.error)
-        return
+        if (!result || !result.success) {
+          setActionError(result?.error ?? 'Gagal menambah mahasiswa. Server tidak merespons dengan benar.')
+          return
+        }
+
+        setData(prev => [...prev, result.data])
+        setAddNama('')
+        setAddNim('')
+        setAddKelas('Graphic Design')
+        setAddProdi('Manajemen Informatika')
+        setAddOpen(false)
+        setActionSuccess('Anggota berhasil ditambahkan. Password default login adalah NIM.')
+      } catch (err) {
+        console.error('handleAdd error:', err)
+        setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menambah mahasiswa.')
       }
-
-      setData(prev => [...prev, result.data])
-      setAddNama('')
-      setAddNim('')
-      setAddKelas('Graphic Design')
-      setAddProdi('Manajemen Informatika')
-      setAddOpen(false)
-      setActionSuccess('Anggota berhasil ditambahkan. Password default login adalah NIM.')
     })
   }
 

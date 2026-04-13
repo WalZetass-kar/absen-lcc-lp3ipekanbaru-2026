@@ -6,6 +6,7 @@ import { ValidationError } from './errors'
 import { createAdminClient, createCredentialClient } from './supabase/admin'
 
 const MEMBER_EMAIL_DOMAIN = 'mcc.local'
+const SUPABASE_MIN_PASSWORD_LENGTH = 6
 
 type EnsureMemberAuthUserInput = {
   memberId?: string
@@ -235,15 +236,27 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
   let user = await findAuthUserByEmail(email)
 
   if (!user) {
+    // Supabase requires passwords of at least 6 characters.
+    // If the NIM is shorter, pad it to meet the minimum requirement.
+    let password = input.password ?? normalizedNim
+    if (password.length < SUPABASE_MIN_PASSWORD_LENGTH) {
+      password = password.padEnd(SUPABASE_MIN_PASSWORD_LENGTH, '0')
+    }
+
     const { data, error } = await admin.auth.admin.createUser({
       app_metadata: nextAppMetadata,
       email,
       email_confirm: true,
-      password: input.password ?? normalizedNim,
+      password,
       user_metadata: nextUserMetadata,
     })
 
     if (error || !data.user) {
+      console.error('[ensureMemberAuthUser] Supabase createUser failed:', {
+        email,
+        errorMessage: error?.message,
+        errorStatus: (error as any)?.status,
+      })
       throw new Error(error?.message || 'Gagal membuat akun anggota di Supabase Auth')
     }
 
