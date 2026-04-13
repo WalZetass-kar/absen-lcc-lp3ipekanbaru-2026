@@ -289,7 +289,7 @@ export default async function PublicLCCPage() {
                 <h3 className="text-xl font-bold text-slate-800 mb-4">Informasi Jadwal</h3>
                 <p className="text-slate-500 leading-relaxed whitespace-pre-wrap text-base">
                   {jadwalPage?.konten ||
-                    'Kegiatan pembelajaran LCC dilaksanakan setiap minggu sesuai jadwal yang telah ditentukan.\n\n📅 Hari: Setiap Sabtu\n🕐 Waktu: 08:00 - 12:00 WIB\n📍 Tempat: Kampus Politeknik LP3I Pekanbaru\n\nJadwal dapat berubah sewaktu-waktu. Pantau halaman ini untuk informasi terbaru.'}
+                    'Kegiatan pembelajaran LCC dilaksanakan setiap minggu sesuai jadwal yang telah ditentukan.\n\n📅 Hari: Setiap Sabtu\n🕐 Waktu: 10:00 - 12:00 WIB\n📍 Tempat: Kampus Politeknik LP3I Pekanbaru\n\nJadwal dapat berubah sewaktu-waktu. Pantau halaman ini untuk informasi terbaru.'}
                 </p>
               </div>
             </div>
