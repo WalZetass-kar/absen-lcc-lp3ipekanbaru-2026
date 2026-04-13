@@ -68,6 +68,11 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     })
   }, [data, search, filterKelas, filterProdi])
 
+  const hasLegacyMahasiswaSchema = useMemo(
+    () => data.some((item) => typeof item.id !== 'string' || item.id.trim().length === 0),
+    [data],
+  )
+
   function openEdit(item: Mahasiswa) {
     setActionError(null)
     setEditItem(item)
@@ -364,16 +369,37 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
             <FileDown className="w-4 h-4 mr-2" />
             Unduh PDF
           </Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)} size="sm">
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            size="sm"
+            disabled={hasLegacyMahasiswaSchema}
+            title={hasLegacyMahasiswaSchema ? 'Jalankan SQL fix schema mahasiswa terlebih dahulu.' : undefined}
+          >
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
-          <Button onClick={() => setAddOpen(true)} size="sm">
+          <Button
+            onClick={() => setAddOpen(true)}
+            size="sm"
+            disabled={hasLegacyMahasiswaSchema}
+            title={hasLegacyMahasiswaSchema ? 'Jalankan SQL fix schema mahasiswa terlebih dahulu.' : undefined}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Tambah Akun Mahasiswa
           </Button>
         </div>
       </div>
+
+      {hasLegacyMahasiswaSchema && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Schema database mahasiswa lama terdeteksi. Jalankan SQL fix
+          {' '}
+          <span className="font-mono">20260413113000_07_repair_legacy_mahasiswa_identity.sql</span>
+          {' '}
+          di Supabase terlebih dahulu, lalu refresh halaman ini sebelum menambah, sinkron, edit, atau hapus mahasiswa.
+        </div>
+      )}
 
       {(actionError || actionSuccess) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
@@ -469,7 +495,10 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.map((m, i) => (
-                    <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                    <tr
+                      key={typeof m.id === 'string' && m.id ? m.id : (typeof m.user_id === 'string' && m.user_id ? m.user_id : `mahasiswa-${i}`)}
+                      className="hover:bg-muted/20 transition-colors"
+                    >
                       <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
                       <td className="px-4 py-3 font-medium">{m.nama}</td>
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{m.nim || '-'}</td>
@@ -504,18 +533,27 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                               onClick={() => handleSyncAccount(m)}
                               aria-label={`Buat akun login untuk ${m.nama}`}
                               title="Buat akun login mahasiswa"
-                              disabled={isPending}
+                              disabled={isPending || hasLegacyMahasiswaSchema}
                             >
                               <UserPlus className="w-3.5 h-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => openEdit(m)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-7 h-7"
+                            onClick={() => openEdit(m)}
+                            disabled={hasLegacyMahasiswaSchema}
+                            title={hasLegacyMahasiswaSchema ? 'Jalankan SQL fix schema mahasiswa terlebih dahulu.' : undefined}
+                          >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             variant="ghost" size="icon"
                             className="w-7 h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => setDeleteId(m.id)}
+                            disabled={hasLegacyMahasiswaSchema}
+                            title={hasLegacyMahasiswaSchema ? 'Jalankan SQL fix schema mahasiswa terlebih dahulu.' : undefined}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -719,12 +757,12 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
-            <Button onClick={handleImport} disabled={isPending || !importFile}>
-              {isPending ? 'Mengimpor...' : 'Import'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+          <Button variant="outline" onClick={() => setImportOpen(false)}>Batal</Button>
+          <Button onClick={handleImport} disabled={isPending || !importFile || hasLegacyMahasiswaSchema}>
+            {isPending ? 'Mengimpor...' : 'Import'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
       </Dialog>
     </div>
   )

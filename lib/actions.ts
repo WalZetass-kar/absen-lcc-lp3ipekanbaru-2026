@@ -21,6 +21,8 @@ type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
 
+const MAHASISWA_SCHEMA_MISMATCH_MESSAGE = 'Schema database mahasiswa masih versi lama. Jalankan SQL fix `20260413113000_07_repair_legacy_mahasiswa_identity.sql` agar tabel `mahasiswa` memiliki kolom `id` sebagai primary key dan `user_id` sebagai foreign key ke auth.users.'
+
 function getRawErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message ?? ''
@@ -35,6 +37,39 @@ function getRawErrorMessage(error: unknown): string {
   }
 
   return ''
+}
+
+function isMahasiswaSchemaMismatchErrorMessage(message: string) {
+  return (
+    message.includes('schema database mahasiswa masih versi lama')
+    || (message.includes('schema cache') && message.includes("'id' column") && message.includes('mahasiswa'))
+    || message.includes('column mahasiswa.id does not exist')
+    || message.includes("could not find the 'id' column of 'mahasiswa'")
+  )
+}
+
+function throwMahasiswaSchemaMismatchIfNeeded(error: unknown): void {
+  const normalizedMsg = getRawErrorMessage(error).toLowerCase()
+
+  if (isMahasiswaSchemaMismatchErrorMessage(normalizedMsg)) {
+    throw new Error(MAHASISWA_SCHEMA_MISMATCH_MESSAGE)
+  }
+}
+
+function assertMahasiswaHasId(record: unknown, context: string): asserts record is Mahasiswa {
+  if (
+    !record
+    || typeof record !== 'object'
+    || typeof (record as { id?: unknown }).id !== 'string'
+    || !(record as { id: string }).id
+  ) {
+    console.error(`[${context}] Schema mismatch: mahasiswa row missing id`, {
+      keys: record && typeof record === 'object' ? Object.keys(record as Record<string, unknown>) : null,
+      record,
+    })
+
+    throw new Error(MAHASISWA_SCHEMA_MISMATCH_MESSAGE)
+  }
 }
 
 function getActionErrorMessage(error: unknown): string {
@@ -63,6 +98,10 @@ function getActionErrorMessage(error: unknown): string {
 
   if (normalizedMsg.includes('column mahasiswa.user_id does not exist') || normalizedMsg.includes('column "user_id" does not exist')) {
     return 'Kolom mahasiswa.user_id belum ada di database. Jalankan migration SQL terbaru terlebih dahulu.'
+  }
+
+  if (isMahasiswaSchemaMismatchErrorMessage(normalizedMsg)) {
+    return MAHASISWA_SCHEMA_MISMATCH_MESSAGE
   }
 
   if (normalizedMsg.includes('duplicate key value') && (normalizedMsg.includes('nim') || normalizedMsg.includes('idx_mahasiswa_nim_unique'))) {
@@ -123,6 +162,7 @@ async function createMahasiswaWithAccount(
     .maybeSingle()
 
   if (lookupError) {
+    throwMahasiswaSchemaMismatchIfNeeded(lookupError)
     console.error('[createMahasiswaWithAccount] Gagal cek duplikasi NIM:', lookupError)
     throw lookupError
   }
@@ -161,6 +201,7 @@ async function createMahasiswaWithAccount(
       .single()
 
     if (insertError || !createdMember) {
+      throwMahasiswaSchemaMismatchIfNeeded(insertError)
       console.error('[createMahasiswaWithAccount] Gagal insert mahasiswa:', {
         authUserId,
         insertError,
@@ -169,7 +210,8 @@ async function createMahasiswaWithAccount(
       throw insertError ?? new Error('Gagal menyimpan data anggota')
     }
 
-    insertedMember = createdMember as Mahasiswa
+    assertMahasiswaHasId(createdMember, 'createMahasiswaWithAccount')
+    insertedMember = createdMember
 
     await syncMemberAuthUserById({
       memberId: insertedMember.id,
@@ -293,9 +335,12 @@ export async function syncMahasiswaAccount(id: string) {
     .single()
 
   if (mahasiswaError || !mahasiswa) {
+    throwMahasiswaSchemaMismatchIfNeeded(mahasiswaError)
     console.error('[syncMahasiswaAccount] Mahasiswa tidak ditemukan:', mahasiswaError)
     throw mahasiswaError ?? new Error('Data mahasiswa tidak ditemukan')
   }
+
+  assertMahasiswaHasId(mahasiswa, 'syncMahasiswaAccount')
 
   if (!mahasiswa.nim?.trim()) {
     throw new ValidationError('NIM wajib diisi sebelum membuat akun mahasiswa')
@@ -378,6 +423,7 @@ export async function updateMahasiswa(id: string, nama: string, kelas: Kelas, pr
     .single()
 
   if (fetchError || !existingMember) {
+    throwMahasiswaSchemaMismatchIfNeeded(fetchError)
     throw fetchError ?? new Error('Data mahasiswa tidak ditemukan')
   }
 
@@ -412,6 +458,7 @@ export async function deleteMahasiswa(id: string) {
     .single()
 
   if (fetchError) {
+    throwMahasiswaSchemaMismatchIfNeeded(fetchError)
     throw fetchError
   }
 
@@ -743,25 +790,63 @@ export async function getDocumentation(tanggal?: string) {
 }
 
 export async function addDocumentation(tanggal: string, judul: string, deskripsi: string, file_url: string, file_path: string) {
+  const admin = createAdminClient()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { error } = await supabase.from('documentation').insert({
+  if (!user) {
+    throw new Error('Akses ditolak. Silakan login ulang sebagai admin.')
+  }
+
+  const { data, error } = await admin.from('documentation').insert({
     tanggal,
     judul,
     deskripsi,
     file_url,
     file_path,
-    created_by: user?.id,
+    created_by: user.id,
   })
+    .select('*')
+    .single()
+
   if (error) throw error
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/lcc')
+
+  return data
 }
 
 export async function deleteDocumentation(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('documentation').delete().eq('id', id)
+  const admin = createAdminClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Akses ditolak. Silakan login ulang sebagai admin.')
+  }
+
+  const { data: existingDoc, error: fetchError } = await admin
+    .from('documentation')
+    .select('id, file_path')
+    .eq('id', id)
+    .single()
+
+  if (fetchError) throw fetchError
+
+  const { error } = await admin.from('documentation').delete().eq('id', id)
   if (error) throw error
+
+  if (existingDoc?.file_path) {
+    const { error: storageError } = await admin.storage
+      .from('documentation-images')
+      .remove([existingDoc.file_path])
+
+    if (storageError) {
+      console.error('Documentation storage cleanup error:', storageError)
+    }
+  }
+
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/lcc')
 }
 
 // ─── Meeting Notes ──────────────────────────────────────────

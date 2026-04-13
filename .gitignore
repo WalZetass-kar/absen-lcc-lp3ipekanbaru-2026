@@ -26,3 +26,5 @@ node_modules
 
 # dotenvx
 .env.keys
+.vercel
+.env*.local

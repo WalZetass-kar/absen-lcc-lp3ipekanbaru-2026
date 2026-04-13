@@ -4,9 +4,8 @@ import { useState, useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Trash2, Upload, ImageIcon } from 'lucide-react'
-import { addDocumentation, deleteDocumentation } from '@/lib/actions'
+import { deleteDocumentation } from '@/lib/actions'
 import type { Documentation } from '@/lib/types'
 
 interface DokumentasiClientProps {
@@ -19,17 +18,9 @@ export default function DokumentasiClient({ initialData }: DokumentasiClientProp
   const [judul, setJudul] = useState('')
   const [deskripsi, setDeskripsi] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileInputKey, setFileInputKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-
-  function readFileAsDataUrl(file: File) {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-      reader.onerror = () => reject(new Error('Gagal membaca file dokumentasi'))
-      reader.readAsDataURL(file)
-    })
-  }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files?.[0]) {
@@ -47,24 +38,29 @@ export default function DokumentasiClient({ initialData }: DokumentasiClientProp
           throw new Error('Ukuran file maksimal 5MB')
         }
 
-        const fileUrl = await readFileAsDataUrl(selectedFile)
-        const filePath = `dokumentasi/${tanggal}/${Date.now()}-${selectedFile.name}`
+        const formData = new FormData()
+        formData.append('tanggal', tanggal)
+        formData.append('judul', judul.trim())
+        formData.append('deskripsi', deskripsi.trim())
+        formData.append('file', selectedFile)
 
-        await addDocumentation(tanggal, judul, deskripsi, fileUrl, filePath)
+        const response = await fetch('/api/documentation', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const payload = await response.json()
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Gagal mengunggah dokumentasi')
+        }
 
         setJudul('')
         setDeskripsi('')
         setSelectedFile(null)
+        setFileInputKey((prev) => prev + 1)
         setError(null)
-        setDocs((prevDocs) => [...prevDocs, {
-          id: Date.now().toString(),
-          tanggal,
-          judul,
-          deskripsi,
-          file_url: fileUrl,
-          file_path: filePath,
-          created_at: new Date().toISOString(),
-        }])
+        setDocs((prevDocs) => [payload.data as Documentation, ...prevDocs])
       } catch (uploadError) {
         setError((uploadError as Error).message || 'Gagal mengunggah dokumentasi')
       }
@@ -73,8 +69,12 @@ export default function DokumentasiClient({ initialData }: DokumentasiClientProp
 
   function handleDelete(id: string) {
     startTransition(async () => {
-      await deleteDocumentation(id)
-      setDocs(docs.filter(d => d.id !== id))
+      try {
+        await deleteDocumentation(id)
+        setDocs((prevDocs) => prevDocs.filter((doc) => doc.id !== id))
+      } catch (deleteError) {
+        setError((deleteError as Error).message || 'Gagal menghapus dokumentasi')
+      }
     })
   }
 
@@ -122,6 +122,7 @@ export default function DokumentasiClient({ initialData }: DokumentasiClientProp
             <label className="text-sm font-medium block mb-2">Foto</label>
             <div className="flex items-center gap-2">
               <Input
+                key={fileInputKey}
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}

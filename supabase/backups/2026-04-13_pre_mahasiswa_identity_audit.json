@@ -1,0 +1,68 @@
+{
+  "capturedAt": "2026-04-13T14:46:18.210Z",
+  "mahasiswaCount": 55,
+  "mahasiswaSampleKeys": [
+    "user_id",
+    "nama",
+    "kelas",
+    "prodi",
+    "nim",
+    "created_at"
+  ],
+  "absensiCount": 39,
+  "studentAccountsCount": 1,
+  "profilesCount": 7,
+  "mahasiswaPreview": [
+    {
+      "user_id": "1865ecd9-d299-4a3d-b0f8-adb5e1e98143",
+      "nama": "Fitriani",
+      "kelas": "Graphic Design",
+      "prodi": "Akuntansi",
+      "nim": null,
+      "created_at": "2026-04-02T02:34:09.17+00:00"
+    },
+    {
+      "user_id": "41fd69df-9b9a-4002-afdb-2c6f08b7cb6a",
+      "nama": "Qurrota Aini",
+      "kelas": "Graphic Design",
+      "prodi": "Akuntansi",
+      "nim": null,
+      "created_at": "2026-04-02T02:34:59.441+00:00"
+    },
+    {
+      "user_id": "75ec15ab-8738-4ea1-b451-9666995416e7",
+      "nama": "Khanza Razkya Madina",
+      "kelas": "Graphic Design",
+      "prodi": "Akuntansi",
+      "nim": null,
+      "created_at": "2026-04-02T02:37:37.769+00:00"
+    },
+    {
+      "user_id": "85d38e21-de50-42c8-b81b-dd1d911a45d2",
+      "nama": "Ratih Anggraini Syafitri",
+      "kelas": "Graphic Design",
+      "prodi": "Akuntansi",
+      "nim": null,
+      "created_at": "2026-04-02T02:38:23.761+00:00"
+    },
+    {
+      "user_id": "0540da88-72aa-4ee3-830e-664960ceac92",
+      "nama": "Kartika Devi Lestari",
+      "kelas": "Graphic Design",
+      "prodi": "Akuntansi",
+      "nim": null,
+      "created_at": "2026-04-02T02:25:26.003+00:00"
+    }
+  ],
+  "studentAccountsPreview": [
+    {
+      "id": "ee91bee2-0618-48bc-9976-2c0f28c8e098",
+      "mahasiswa_id": "6493e9ce-f124-4bce-8653-048eece7948d",
+      "nim": "202522007",
+      "password_hash": "$2b$10$y2MLgpxVm0fxi/5Wg8oIH.wSCrYcN5HtBW4klfu1/ABjXWNPg7dnW",
+      "must_change_password": true,
+      "created_at": "2026-04-10T16:09:41.840415+00:00",
+      "updated_at": "2026-04-10T16:09:41.840415+00:00"
+    }
+  ]
+}
