@@ -810,6 +810,7 @@ export async function addDocumentation(tanggal: string, judul: string, deskripsi
 
   if (error) throw error
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/')
   revalidatePath('/lcc')
 
   return data
@@ -846,6 +847,7 @@ export async function deleteDocumentation(id: string) {
   }
 
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/')
   revalidatePath('/lcc')
 }
 

@@ -42,6 +42,8 @@ export async function createActivityDocumentation(
   
   await logAdminActivity(user.id, `Membuat dokumentasi kegiatan: ${judul}`, { tanggal_kegiatan })
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/')
+  revalidatePath('/lcc')
   return data
 }
 
@@ -71,6 +73,8 @@ export async function deleteActivityDocumentation(id: string) {
   
   await logAdminActivity(user.id, `Menghapus dokumentasi kegiatan: ${id}`)
   revalidatePath('/dashboard/dokumentasi')
+  revalidatePath('/')
+  revalidatePath('/lcc')
 }
 
 // ─── Admin Activity Logging ──────────────────────────────
@@ -129,6 +133,8 @@ export async function publishAnnouncement(judul: string, isi: string) {
   
   await logAdminActivity(user.id, `Membuat pengumuman: ${judul}`)
   revalidatePath('/dashboard')
+  revalidatePath('/')
+  revalidatePath('/lcc')
   return data
 }
 
@@ -158,6 +164,8 @@ export async function updateAnnouncement(
   
   await logAdminActivity(user.id, `Mengubah pengumuman: ${judul}`)
   revalidatePath('/dashboard')
+  revalidatePath('/')
+  revalidatePath('/lcc')
 }
 
 // Get all announcements (admin view)
@@ -179,6 +187,8 @@ export async function deleteAnnouncement(id: string) {
   
   if (error) throw error
   revalidatePath('/dashboard')
+  revalidatePath('/')
+  revalidatePath('/lcc')
 }
 
 // Create weekly pertemuan (auto)
@@ -327,6 +337,7 @@ export async function updatePublicLCCPage(
     })
   }
   
+  revalidatePath('/')
   revalidatePath('/lcc')
 }
 

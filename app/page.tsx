@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getStudentSession } from '@/lib/student-actions'
+import PublicLCCPage from './lcc/page'
+
+export { metadata } from './lcc/page'
 
 export default async function RootPage() {
   const supabase = await createClient()
@@ -27,7 +30,7 @@ export default async function RootPage() {
   if (studentSession) {
     redirect('/student/dashboard')
   }
-  
-  // Not logged in, redirect to login choice page
-  redirect('/login')
+
+  // Domain utama menampilkan landing page publik LCC.
+  return <PublicLCCPage />
 }
