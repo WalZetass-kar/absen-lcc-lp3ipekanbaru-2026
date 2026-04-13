@@ -455,7 +455,7 @@ export default async function PublicLCCPage() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                  <span className="text-slate-400 text-sm">(0761) xxxx-xxxx</span>
+                  <span className="text-slate-400 text-sm">085265866661</span>
                 </li>
               </ul>
             </div>

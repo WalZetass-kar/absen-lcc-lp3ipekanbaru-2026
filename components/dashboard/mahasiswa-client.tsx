@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, type FormEvent } from 'react'
 import { addMahasiswaAction, updateMahasiswa, deleteMahasiswa, importMahasiswaFromExcel, syncMahasiswaAccountAction } from '@/lib/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -82,6 +82,26 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     return 'Terjadi kesalahan. Silakan coba lagi.'
   }
 
+  function validateAddForm() {
+    const normalizedNama = addNama.trim()
+    const normalizedNim = addNim.trim()
+
+    if (!normalizedNama) return 'Nama lengkap wajib diisi.'
+    if (!normalizedNim) return 'NIM wajib diisi.'
+    if (normalizedNim.length < 3) return 'NIM minimal 3 karakter.'
+    if (normalizedNim.length > 50) return 'NIM maksimal 50 karakter.'
+    if (!/^[a-zA-Z0-9._-]+$/.test(normalizedNim)) {
+      return 'NIM hanya boleh berisi huruf, angka, titik, garis bawah, atau tanda minus.'
+    }
+
+    return null
+  }
+
+  function validateEditForm() {
+    if (!editNama.trim()) return 'Nama lengkap wajib diisi.'
+    return null
+  }
+
   function openAttendancePdf(mode: 'preview' | 'download') {
     const params = new URLSearchParams()
 
@@ -119,16 +139,37 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     })
   }
 
-  function handleAdd() {
-    if (!addNama.trim() || !addNim.trim()) return
+  function handleAddSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const validationError = validateAddForm()
+    if (validationError) {
+      console.error('Validasi tambah mahasiswa gagal:', {
+        nama: addNama.trim(),
+        nim: addNim.trim(),
+        validationError,
+      })
+      setActionError(validationError)
+      setActionSuccess(null)
+      return
+    }
+
     setActionError(null)
     setActionSuccess(null)
 
     startTransition(async () => {
       try {
-        const result = await addMahasiswaAction(addNama.trim(), addKelas, addProdi, addNim.trim())
+        const trimmedNama = addNama.trim()
+        const trimmedNim = addNim.trim()
+
+        const result = await addMahasiswaAction(trimmedNama, addKelas, addProdi, trimmedNim)
 
         if (!result || !result.success) {
+          console.error('Tambah mahasiswa gagal:', {
+            nama: trimmedNama,
+            nim: trimmedNim,
+            serverError: result?.error,
+          })
           setActionError(result?.error ?? 'Gagal menambah mahasiswa. Server tidak merespons dengan benar.')
           return
         }
@@ -246,16 +287,33 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
     })
   }
 
-  function handleEdit() {
-    if (!editItem || !editNama.trim()) return
+  function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!editItem) return
+
+    const validationError = validateEditForm()
+    if (validationError) {
+      console.error('Validasi edit mahasiswa gagal:', {
+        id: editItem.id,
+        nama: editNama.trim(),
+        validationError,
+      })
+      setActionError(validationError)
+      setActionSuccess(null)
+      return
+    }
+
     setActionError(null)
     setActionSuccess(null)
 
     startTransition(async () => {
       try {
-        await updateMahasiswa(editItem.id, editNama.trim(), editKelas, editProdi)
+        const trimmedNama = editNama.trim()
+
+        await updateMahasiswa(editItem.id, trimmedNama, editKelas, editProdi)
         setData(prev => prev.map(m => m.id === editItem.id
-          ? { ...m, nama: editNama.trim(), kelas: editKelas, prodi: editProdi }
+          ? { ...m, nama: trimmedNama, kelas: editKelas, prodi: editProdi }
           : m
         ))
         setEditOpen(false)
@@ -479,23 +537,27 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
             <DialogTitle>Tambah Akun Mahasiswa</DialogTitle>
             <DialogDescription>Tambahkan data anggota baru dan buat akun login mahasiswa otomatis dari NIM</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <form className="space-y-4 py-2" onSubmit={handleAddSubmit}>
             <div className="space-y-2">
-              <Label>Nama Lengkap</Label>
+              <Label htmlFor="add-mahasiswa-nama">Nama Lengkap</Label>
               <Input
+                id="add-mahasiswa-nama"
                 placeholder="Nama lengkap"
                 value={addNama}
                 onChange={e => setAddNama(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                autoComplete="name"
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label>NIM</Label>
+              <Label htmlFor="add-mahasiswa-nim">NIM</Label>
               <Input
+                id="add-mahasiswa-nim"
                 placeholder="Nomor Induk Mahasiswa"
                 value={addNim}
                 onChange={e => setAddNim(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                autoCapitalize="off"
+                autoComplete="username"
                 required
               />
             </div>
@@ -526,13 +588,13 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                 Password default anggota adalah NIM. Sistem akan membuat akun login secara otomatis dan anggota diminta mengganti password saat login pertama.
               </p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Batal</Button>
-            <Button onClick={handleAdd} disabled={isPending || !addNama.trim() || !addNim.trim()}>
-              {isPending ? 'Menyimpan...' : 'Simpan'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Batal</Button>
+              <Button type="submit" disabled={isPending || !addNama.trim() || !addNim.trim()}>
+                {isPending ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -543,13 +605,15 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
             <DialogTitle>Edit Mahasiswa</DialogTitle>
             <DialogDescription>Ubah data mahasiswa yang sudah terdaftar</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <form className="space-y-4 py-2" onSubmit={handleEditSubmit}>
             <div className="space-y-2">
-              <Label>Nama Lengkap</Label>
+              <Label htmlFor="edit-mahasiswa-nama">Nama Lengkap</Label>
               <Input
+                id="edit-mahasiswa-nama"
                 value={editNama}
                 onChange={e => setEditNama(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleEdit()}
+                autoComplete="name"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -574,13 +638,13 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
-            <Button onClick={handleEdit} disabled={isPending || !editNama.trim()}>
-              {isPending ? 'Menyimpan...' : 'Simpan'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
+              <Button type="submit" disabled={isPending || !editNama.trim()}>
+                {isPending ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

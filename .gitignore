@@ -20,3 +20,9 @@ node_modules
 .env*.local
 .env.local
 .env.example
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys

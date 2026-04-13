@@ -22,6 +22,10 @@ type MemberAuthFlags = {
   mustChangePassword: boolean
 }
 
+type SyncMemberAuthUserByIdInput = {
+  userId: string
+} & Omit<EnsureMemberAuthUserInput, 'password' | 'syncPassword'>
+
 function getAuthErrorMessage(error: { message?: string } | null | undefined) {
   return error?.message?.toLowerCase() ?? ''
 }
@@ -270,6 +274,16 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
     created,
     email,
     userId: user.id,
+  }
+}
+
+export async function syncMemberAuthUserById(input: SyncMemberAuthUserByIdInput) {
+  const user = await getAuthUserById(input.userId)
+  const updatedUser = await updateMemberMetadata(user, input)
+
+  return {
+    email: updatedUser.email ?? buildMemberEmail(input.nim),
+    userId: updatedUser.id,
   }
 }
 
