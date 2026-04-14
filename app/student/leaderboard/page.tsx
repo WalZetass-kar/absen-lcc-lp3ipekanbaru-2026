@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Trophy, Medal, Award, User } from 'lucide-react'
 
+// Force dynamic rendering to avoid build-time database calls
+export const dynamic = 'force-dynamic'
+
 export default async function LeaderboardPage() {
   const leaderboard = await getLeaderboard(20)
 

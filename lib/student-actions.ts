@@ -512,17 +512,55 @@ import type { LeaderboardEntry, QRScanHistory, MeetingFeedback, StudentAchieveme
 // 1. GET LEADERBOARD
 export async function getLeaderboard(limit: number = 20): Promise<LeaderboardEntry[]> {
   const admin = createAdminClient()
+  
+  // Query langsung tanpa view untuk menghindari masalah build
   const { data, error } = await admin
-    .from('student_leaderboard')
-    .select('*')
+    .from('mahasiswa')
+    .select(`
+      id,
+      nama,
+      nim,
+      kelas,
+      prodi,
+      profile_photo_url
+    `)
     .limit(limit)
 
   if (error) {
-    console.error('Error fetching leaderboard:', error)
-    throw new Error('Gagal mengambil data leaderboard')
+    console.error('Error fetching students:', error)
+    throw new Error('Gagal mengambil data mahasiswa')
   }
 
-  return data as LeaderboardEntry[]
+  // Get attendance data for each student
+  const studentsWithAttendance = await Promise.all(
+    (data || []).map(async (student) => {
+      const { data: attendanceData } = await admin
+        .from('absensi')
+        .select('status')
+        .eq('mahasiswa_id', student.id)
+
+      const hadirCount = attendanceData?.filter(a => a.status === 'Hadir').length || 0
+      const totalPertemuan = attendanceData?.length || 0
+      const attendancePercentage = totalPertemuan > 0 ? Math.round((hadirCount / totalPertemuan) * 100) : 0
+
+      return {
+        ...student,
+        hadir_count: hadirCount,
+        total_pertemuan: totalPertemuan,
+        attendance_percentage: attendancePercentage,
+      }
+    })
+  )
+
+  // Sort by attendance percentage (descending) then by hadir_count (descending)
+  return studentsWithAttendance
+    .sort((a, b) => {
+      if (b.attendance_percentage !== a.attendance_percentage) {
+        return b.attendance_percentage - a.attendance_percentage
+      }
+      return b.hadir_count - a.hadir_count
+    })
+    .slice(0, limit) as LeaderboardEntry[]
 }
 
 // 2. GET ALL ANNOUNCEMENTS (with pagination)
