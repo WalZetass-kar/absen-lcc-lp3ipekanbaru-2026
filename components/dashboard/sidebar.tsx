@@ -63,11 +63,11 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
   }
 
   const sidebarContent = (
-    <aside className="w-64 bg-sidebar flex flex-col h-full shrink-0">
+    <aside className="w-64 bg-sidebar flex flex-col h-full shrink-0 lg:rounded-r-2xl">
       {/* Brand */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary shrink-0">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-sidebar-primary shrink-0">
             <BookOpen className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
           <div>
@@ -78,7 +78,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
         {/* Close button - mobile only */}
         <button
           onClick={onMobileClose}
-          className="lg:hidden p-1 rounded-md text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
+          className="lg:hidden p-1 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -95,9 +95,9 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
               href={href}
               onClick={onMobileClose}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
             >
@@ -126,7 +126,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
         <Button
           variant="outline"
           size="sm"
-          className="w-full"
+          className="w-full rounded-xl"
           onClick={handleLogout}
           disabled={isLoggingOut}
         >
@@ -153,7 +153,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
             onClick={onMobileClose}
           />
           {/* Drawer */}
-          <div className="relative flex w-64 h-full">
+          <div className="relative flex w-64 h-full rounded-r-2xl overflow-hidden">
             {sidebarContent}
           </div>
         </div>
