@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -63,12 +64,14 @@ export default function Topbar({ profile, onMenuClick }: TopbarProps) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => router.push('/dashboard/profil')}>
-            <User className="w-4 h-4" />
-            <span className="capitalize">{profile?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/profil" className="cursor-pointer">
+              <User className="w-4 h-4" />
+              <span className="capitalize">{profile?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
             <LogOut className="w-4 h-4" />
             Keluar
           </DropdownMenuItem>
