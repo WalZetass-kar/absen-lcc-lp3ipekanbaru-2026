@@ -19,6 +19,7 @@ export interface Mahasiswa {
   kelas: Kelas
   prodi: Prodi
   user_id?: string | null
+  profile_photo_url?: string | null
   created_at: string
 }
 
@@ -205,4 +206,67 @@ export interface PublicLCCPage {
   updated_by?: string
   created_at: string
   updated_at: string
+}
+
+// New types for student features
+export interface AnnouncementRead {
+  id: string
+  mahasiswa_id: string
+  announcement_id: string
+  read_at: string
+  created_at: string
+}
+
+export interface QRScanHistory {
+  id: string
+  mahasiswa_id: string
+  pertemuan_id: string
+  qr_code_data: string
+  scan_timestamp: string
+  success: boolean
+  error_message?: string
+  created_at: string
+  pertemuan?: Pick<Pertemuan, 'nomor_pertemuan' | 'tanggal'>
+}
+
+export interface MeetingFeedback {
+  id: string
+  mahasiswa_id: string
+  pertemuan_id: string
+  rating_materi?: number
+  rating_mentor?: number
+  komentar?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface StudentAchievement {
+  id: string
+  mahasiswa_id: string
+  achievement_type: string
+  achievement_name: string
+  achievement_description?: string
+  icon?: string
+  earned_at: string
+  created_at: string
+}
+
+export interface LeaderboardEntry {
+  id: string
+  nama: string
+  nim: string | null
+  kelas: Kelas
+  prodi: Prodi
+  profile_photo_url?: string | null
+  hadir_count: number
+  total_pertemuan: number
+  attendance_percentage: number
+}
+
+export interface CalendarDay {
+  date: string
+  status?: StatusAbsensi
+  pertemuan?: number
+  isToday: boolean
+  isCurrentMonth: boolean
 }

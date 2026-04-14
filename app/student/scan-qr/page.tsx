@@ -55,7 +55,7 @@ export default function ScanQRPage() {
         <p className="text-muted-foreground">Pindai QR code untuk melakukan absensi</p>
       </div>
 
-      <div className="space-y-4 max-w-xl">
+      <div className="space-y-4 w-full">
         {message && (
           <Alert variant={message.type === 'success' ? 'default' : 'destructive'}>
             <div className="flex gap-3">

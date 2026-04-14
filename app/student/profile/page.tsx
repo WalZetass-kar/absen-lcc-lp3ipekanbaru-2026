@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getStudentSession } from '@/lib/student-actions'
 import { User, GraduationCap, BookOpen, Building2 } from 'lucide-react'
-import ProfilePhotoUpload from '@/components/shared/profile-photo-upload'
+import StudentProfilePhotoUpload from '@/components/student/profile-photo-upload'
 
 export default async function ProfilePage() {
   const session = await getStudentSession()
@@ -26,7 +26,7 @@ export default async function ProfilePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ProfilePhotoUpload userName={session.nama} />
+          <StudentProfilePhotoUpload userName={session.nama} />
         </CardContent>
       </Card>
 

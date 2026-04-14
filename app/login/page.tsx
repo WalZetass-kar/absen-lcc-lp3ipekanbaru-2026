@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Users, Lock } from 'lucide-react'
+import { BookOpen, Users, Lock, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 export default function LoginChoicePage() {
   const router = useRouter()
@@ -65,6 +66,16 @@ export default function LoginChoicePage() {
               </Button>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Public Page Button */}
+        <div className="mt-8 flex justify-center">
+          <Link href="/lcc" target="_blank">
+            <Button variant="outline" className="rounded-xl gap-2">
+              <ExternalLink className="w-4 h-4" />
+              Lihat Halaman Public
+            </Button>
+          </Link>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-8">

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   LayoutDashboard, QrCode, History, Award, User, LogOut, Menu, X, GraduationCap, FileCheck2, ExternalLink,
+  Bell, Trophy, Calendar, BookOpen, Star, MessageSquare, KeyRound,
 } from 'lucide-react'
 import { studentLogout } from '@/lib/student-actions'
 import { ProfileProvider, useProfile } from '@/lib/profile-context'
@@ -36,6 +37,42 @@ const menuItems = [
     description: 'Lihat semua catatan kehadiran'
   },
   {
+    icon: Calendar,
+    label: 'Kalender',
+    href: '/student/calendar',
+    description: 'Kalender kehadiran bulanan'
+  },
+  {
+    icon: Trophy,
+    label: 'Leaderboard',
+    href: '/student/leaderboard',
+    description: 'Ranking kehadiran mahasiswa'
+  },
+  {
+    icon: Star,
+    label: 'Achievement',
+    href: '/student/achievements',
+    description: 'Badge dan pencapaian'
+  },
+  {
+    icon: Bell,
+    label: 'Pengumuman',
+    href: '/student/announcements',
+    description: 'Semua pengumuman LCC'
+  },
+  {
+    icon: BookOpen,
+    label: 'Materi',
+    href: '/student/materials',
+    description: 'Materi pembelajaran'
+  },
+  {
+    icon: MessageSquare,
+    label: 'Feedback',
+    href: '/student/feedback',
+    description: 'Beri feedback pertemuan'
+  },
+  {
     icon: Award,
     label: 'Sertifikat',
     href: '/student/certificate',
@@ -46,6 +83,12 @@ const menuItems = [
     label: 'Profil',
     href: '/student/profile',
     description: 'Kelola data pribadi'
+  },
+  {
+    icon: KeyRound,
+    label: 'Ganti Password',
+    href: '/student/change-password',
+    description: 'Ubah password akun'
   }
 ]
 

@@ -501,3 +501,424 @@ export async function getSchedule() {
   if (error) throw error
   return data
 }
+
+// ============================================
+// NEW STUDENT FEATURES ACTIONS
+// ============================================
+
+import type { LeaderboardEntry, QRScanHistory, MeetingFeedback, StudentAchievement, CalendarDay } from './types'
+
+// 1. GET LEADERBOARD
+export async function getLeaderboard(limit: number = 20): Promise<LeaderboardEntry[]> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('student_leaderboard')
+    .select('*')
+    .limit(limit)
+
+  if (error) {
+    console.error('Error fetching leaderboard:', error)
+    throw new Error('Gagal mengambil data leaderboard')
+  }
+
+  return data as LeaderboardEntry[]
+}
+
+// 2. GET ALL ANNOUNCEMENTS (with pagination)
+export async function getAllAnnouncementsWithReadStatus(page: number = 1, limit: number = 10) {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+  
+  const offset = (page - 1) * limit
+  
+  const { data, error, count } = await admin
+    .from('announcements')
+    .select(`
+      *,
+      announcements_read!left(id, read_at)
+    `, { count: 'exact' })
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw error
+
+  const announcements = (data ?? []).map((item) => {
+    const readRecords = item.announcements_read || []
+    const isRead = readRecords.some((r: any) => r.id)
+    
+    return {
+      ...item,
+      is_read: isRead,
+      read_at: readRecords[0]?.read_at || null,
+    }
+  })
+
+  return {
+    announcements,
+    total: count || 0,
+    page,
+    limit,
+    totalPages: Math.ceil((count || 0) / limit),
+  }
+}
+
+// 3. MARK ANNOUNCEMENT AS READ
+export async function markAnnouncementAsRead(announcementId: string) {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  const { error } = await admin
+    .from('announcements_read')
+    .upsert({
+      mahasiswa_id: student.id,
+      announcement_id: announcementId,
+    }, {
+      onConflict: 'mahasiswa_id,announcement_id',
+    })
+
+  if (error) throw error
+  revalidatePath('/student/announcements')
+}
+
+// 4. GET QR SCAN HISTORY
+export async function getQRScanHistory(): Promise<QRScanHistory[]> {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('qr_scan_history')
+    .select(`
+      *,
+      pertemuan:pertemuan_id (
+        nomor_pertemuan,
+        tanggal
+      )
+    `)
+    .eq('mahasiswa_id', student.id)
+    .order('scan_timestamp', { ascending: false })
+
+  if (error) throw error
+
+  return (data ?? []).map((item) => {
+    const pertemuan = Array.isArray(item.pertemuan) ? item.pertemuan[0] : item.pertemuan
+    return {
+      ...item,
+      pertemuan: pertemuan ? {
+        nomor_pertemuan: pertemuan.nomor_pertemuan,
+        tanggal: pertemuan.tanggal,
+      } : undefined,
+    }
+  }) as QRScanHistory[]
+}
+
+// 5. LOG QR SCAN (called internally when scanning)
+export async function logQRScan(pertemuanId: string, qrCodeData: string, success: boolean, errorMessage?: string) {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  const { error } = await admin
+    .from('qr_scan_history')
+    .insert({
+      mahasiswa_id: student.id,
+      pertemuan_id: pertemuanId,
+      qr_code_data: qrCodeData,
+      success,
+      error_message: errorMessage,
+    })
+
+  if (error) {
+    console.error('Error logging QR scan:', error)
+  }
+}
+
+// 6. SUBMIT MEETING FEEDBACK
+export async function submitMeetingFeedback(
+  pertemuanId: string,
+  ratingMateri: number,
+  ratingMentor: number,
+  komentar?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { student } = await requireCurrentStudent()
+    const admin = createAdminClient()
+
+    // Validate ratings
+    if (ratingMateri < 1 || ratingMateri > 5 || ratingMentor < 1 || ratingMentor > 5) {
+      return { success: false, error: 'Rating harus antara 1-5' }
+    }
+
+    const { error } = await admin
+      .from('meeting_feedback')
+      .upsert({
+        mahasiswa_id: student.id,
+        pertemuan_id: pertemuanId,
+        rating_materi: ratingMateri,
+        rating_mentor: ratingMentor,
+        komentar: komentar || null,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'mahasiswa_id,pertemuan_id',
+      })
+
+    if (error) throw error
+
+    revalidatePath('/student/feedback')
+    return { success: true }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Gagal mengirim feedback' 
+    }
+  }
+}
+
+// 7. GET STUDENT FEEDBACK HISTORY
+export async function getStudentFeedbackHistory(): Promise<MeetingFeedback[]> {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('meeting_feedback')
+    .select('*')
+    .eq('mahasiswa_id', student.id)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as MeetingFeedback[]
+}
+
+// 8. GET STUDENT ACHIEVEMENTS
+export async function getStudentAchievements(): Promise<StudentAchievement[]> {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('student_achievements')
+    .select('*')
+    .eq('mahasiswa_id', student.id)
+    .order('earned_at', { ascending: false })
+
+  if (error) throw error
+  return data as StudentAchievement[]
+}
+
+// 9. CHECK AND AWARD ACHIEVEMENTS (called after attendance update)
+export async function checkAndAwardAchievements() {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+  
+  const stats = await getStudentAttendanceStats()
+  const attendance = await getStudentAttendance()
+
+  // Perfect Attendance (100%)
+  if (stats.percentage === 100 && stats.total >= 5) {
+    await admin.from('student_achievements').upsert({
+      mahasiswa_id: student.id,
+      achievement_type: 'perfect_attendance',
+      achievement_name: 'Perfect Attendance',
+      achievement_description: '100% kehadiran',
+      icon: '🏆',
+    }, {
+      onConflict: 'mahasiswa_id,achievement_type',
+      ignoreDuplicates: true,
+    })
+  }
+
+  // Early Bird (5 consecutive attendances)
+  const recentAttendance = attendance.slice(0, 5)
+  if (recentAttendance.length === 5 && recentAttendance.every(a => a.status === 'Hadir')) {
+    await admin.from('student_achievements').upsert({
+      mahasiswa_id: student.id,
+      achievement_type: 'early_bird',
+      achievement_name: 'Early Bird',
+      achievement_description: '5 kehadiran berturut-turut',
+      icon: '🐦',
+    }, {
+      onConflict: 'mahasiswa_id,achievement_type',
+      ignoreDuplicates: true,
+    })
+  }
+
+  // Comeback King (improved from <60% to >80%)
+  if (stats.percentage >= 80 && stats.total >= 10) {
+    await admin.from('student_achievements').upsert({
+      mahasiswa_id: student.id,
+      achievement_type: 'comeback_king',
+      achievement_name: 'Comeback King',
+      achievement_description: 'Meningkatkan kehadiran ke 80%+',
+      icon: '👑',
+    }, {
+      onConflict: 'mahasiswa_id,achievement_type',
+      ignoreDuplicates: true,
+    })
+  }
+
+  revalidatePath('/student/achievements')
+}
+
+// 10. GET CALENDAR DATA
+export async function getAttendanceCalendar(year: number, month: number): Promise<CalendarDay[]> {
+  const { student } = await requireCurrentStudent()
+  const admin = createAdminClient()
+
+  // Get attendance for the month
+  const startDate = new Date(year, month - 1, 1)
+  const endDate = new Date(year, month, 0)
+
+  const { data, error } = await admin
+    .from('absensi')
+    .select('tanggal, status, pertemuan')
+    .eq('mahasiswa_id', student.id)
+    .gte('tanggal', startDate.toISOString().split('T')[0])
+    .lte('tanggal', endDate.toISOString().split('T')[0])
+
+  if (error) throw error
+
+  // Build calendar
+  const today = new Date()
+  const daysInMonth = endDate.getDate()
+  const calendar: CalendarDay[] = []
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day)
+    const dateStr = date.toISOString().split('T')[0]
+    const attendanceRecord = data?.find(a => a.tanggal === dateStr)
+
+    calendar.push({
+      date: dateStr,
+      status: attendanceRecord?.status as any,
+      pertemuan: attendanceRecord?.pertemuan,
+      isToday: date.toDateString() === today.toDateString(),
+      isCurrentMonth: true,
+    })
+  }
+
+  return calendar
+}
+
+// 11. GET MEETING NOTES/MATERIALS
+export async function getMeetingNotes(pertemuanNumber?: number) {
+  const admin = createAdminClient()
+  
+  let query = admin
+    .from('meeting_notes')
+    .select('*')
+    .order('pertemuan', { ascending: false })
+
+  if (pertemuanNumber) {
+    query = query.eq('pertemuan', pertemuanNumber)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  return data
+}
+
+// 12. UPLOAD STUDENT PROFILE PHOTO
+export async function uploadStudentProfilePhoto(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const { student, userId } = await requireCurrentStudent()
+    const admin = createAdminClient()
+    
+    const file = formData.get('file') as File
+    if (!file) {
+      return { success: false, error: 'No file provided' }
+    }
+
+    // Validate file
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      return { success: false, error: 'Format file tidak valid' }
+    }
+
+    const maxSize = 2 * 1024 * 1024 // 2MB
+    if (file.size > maxSize) {
+      return { success: false, error: 'Ukuran file maksimal 2MB' }
+    }
+
+    // Delete old photo if exists
+    if (student.profile_photo_url) {
+      const oldPath = student.profile_photo_url.split('/').pop()
+      if (oldPath) {
+        await admin.storage
+          .from('profile-photos')
+          .remove([`students/${student.id}/${oldPath}`])
+      }
+    }
+
+    // Upload new photo
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}.${fileExt}`
+    const filePath = `students/${student.id}/${fileName}`
+
+    const { error: uploadError } = await admin.storage
+      .from('profile-photos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      return { success: false, error: 'Gagal upload file' }
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = admin.storage
+      .from('profile-photos')
+      .getPublicUrl(filePath)
+
+    // Update mahasiswa record
+    const { error: updateError } = await admin
+      .from('mahasiswa')
+      .update({ profile_photo_url: publicUrl })
+      .eq('id', student.id)
+
+    if (updateError) {
+      return { success: false, error: 'Gagal update profil' }
+    }
+
+    revalidatePath('/student/profile')
+    return { success: true, url: publicUrl }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Terjadi kesalahan' 
+    }
+  }
+}
+
+// 13. DELETE STUDENT PROFILE PHOTO
+export async function deleteStudentProfilePhoto(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { student } = await requireCurrentStudent()
+    const admin = createAdminClient()
+
+    if (student.profile_photo_url) {
+      const oldPath = student.profile_photo_url.split('/').pop()
+      if (oldPath) {
+        await admin.storage
+          .from('profile-photos')
+          .remove([`students/${student.id}/${oldPath}`])
+      }
+    }
+
+    const { error: updateError } = await admin
+      .from('mahasiswa')
+      .update({ profile_photo_url: null })
+      .eq('id', student.id)
+
+    if (updateError) {
+      return { success: false, error: 'Gagal hapus foto' }
+    }
+
+    revalidatePath('/student/profile')
+    return { success: true }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Terjadi kesalahan' 
+    }
+  }
+}
