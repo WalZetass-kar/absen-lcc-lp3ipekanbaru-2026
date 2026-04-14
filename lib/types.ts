@@ -8,6 +8,7 @@ export interface Profile {
   nama: string
   email: string
   role: RoleAdmin
+  profile_photo_url?: string | null
   created_at: string
 }
 
