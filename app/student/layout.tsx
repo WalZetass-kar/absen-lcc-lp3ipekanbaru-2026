@@ -100,24 +100,24 @@ function StudentLayoutInner({
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:rounded-r-2xl ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-blue-600 to-blue-700 shadow-xl transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 rounded-r-2xl ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-white/10">
           <Link href="/student/dashboard" className="flex items-center gap-2.5 font-bold text-lg group">
             <img
               src="/lp3i-logo.png"
               alt="LP3I"
-              className="w-9 h-9 rounded-xl object-contain"
+              className="w-9 h-9 rounded-xl object-contain bg-white p-1"
             />
-            <span className="text-foreground tracking-wide">LCC</span>
+            <span className="text-white tracking-wide">LCC</span>
           </Link>
-          <p className="text-xs text-muted-foreground mt-1.5">Politeknik LP3I Pekanbaru</p>
+          <p className="text-xs text-blue-100 mt-1.5">Politeknik LP3I Pekanbaru</p>
         </div>
 
         {/* Sidebar Menu */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -127,15 +127,19 @@ function StudentLayoutInner({
                   variant="ghost"
                   className={`w-full justify-start text-left h-auto py-3 px-4 rounded-xl transition-all duration-300 ${
                     isActive
-                      ? 'bg-primary/10 text-primary hover:bg-primary/15 border border-primary/10'
-                      : 'hover:bg-muted'
+                      ? 'bg-white/20 text-white hover:bg-white/25 shadow-lg'
+                      : 'text-blue-50 hover:bg-white/10'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-primary' : ''}`} />
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${isActive ? 'text-primary' : ''}`}>{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                  <Icon className={`w-5 h-5 mr-3 shrink-0 ${isActive ? 'text-white' : 'text-blue-100'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold truncate ${isActive ? 'text-white' : 'text-white'}`}>
+                      {item.label}
+                    </p>
+                    <p className="text-xs text-blue-100 truncate">
+                      {item.description}
+                    </p>
                   </div>
                 </Button>
               </Link>
@@ -144,10 +148,10 @@ function StudentLayoutInner({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-white/10">
           <Button
             variant="destructive"
-            className="w-full rounded-xl"
+            className="w-full rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-lg"
             onClick={handleLogout}
             disabled={isLoggingOut}
           >
