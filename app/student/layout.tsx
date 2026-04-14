@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
-  LayoutDashboard, QrCode, History, Award, User, LogOut, Menu, X, GraduationCap, FileCheck2,
+  LayoutDashboard, QrCode, History, Award, User, LogOut, Menu, X, GraduationCap, FileCheck2, ExternalLink,
 } from 'lucide-react'
 import { studentLogout } from '@/lib/student-actions'
 import { ProfileProvider, useProfile } from '@/lib/profile-context'
@@ -148,7 +148,17 @@ function StudentLayoutInner({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          {/* Public Website Link */}
+          <Link
+            href="/lcc"
+            target="_blank"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-blue-50 hover:bg-white/10"
+          >
+            <ExternalLink className="w-5 h-5 shrink-0" />
+            <span>Halaman Public</span>
+          </Link>
+
           <Button
             variant="destructive"
             className="w-full rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-lg"

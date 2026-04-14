@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Award,
   LogOut,
+  ExternalLink,
 } from 'lucide-react'
 import type { Profile } from '@/lib/types'
 
@@ -110,6 +111,16 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
 
       {/* User info */}
       <div className="px-4 py-4 border-t border-sidebar-border space-y-3">
+        {/* Public Website Link */}
+        <Link
+          href="/lcc"
+          target="_blank"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <ExternalLink className="w-4 h-4 shrink-0" />
+          Halaman Public
+        </Link>
+
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
             <span className="text-xs font-semibold text-sidebar-primary-foreground">
