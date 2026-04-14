@@ -23,6 +23,7 @@ type StudentRecord = {
   nim: string | null
   prodi: string | null
   user_id: string | null
+  profile_photo_url?: string | null
 }
 
 function takeFirst<T>(data: T | T[] | null): T | null {
@@ -34,7 +35,7 @@ async function getStudentRecordByUserId(userId: string) {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('mahasiswa')
-    .select('id, kelas, nama, nim, prodi, user_id')
+    .select('id, kelas, nama, nim, prodi, user_id, profile_photo_url')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -59,7 +60,7 @@ async function linkStudentUserIdByNim(nim: string, userId: string) {
     .update({ user_id: userId, nim: normalizedNim })
     .eq('nim', normalizedNim)
     .is('user_id', null)
-    .select('id, kelas, nama, nim, prodi, user_id')
+    .select('id, kelas, nama, nim, prodi, user_id, profile_photo_url')
     .maybeSingle()
 
   if (error) {
