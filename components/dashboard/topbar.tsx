@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,12 +23,19 @@ interface TopbarProps {
 
 export default function Topbar({ profile, onMenuClick }: TopbarProps) {
   const router = useRouter()
+  const [isOpen, setIsOpen] = useState(false)
 
   async function handleLogout() {
+    setIsOpen(false)
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/auth/admin/login')
     router.refresh()
+  }
+
+  function handleProfileClick() {
+    setIsOpen(false)
+    router.push('/dashboard/profil')
   }
 
   return (
@@ -44,9 +52,14 @@ export default function Topbar({ profile, onMenuClick }: TopbarProps) {
       {/* Empty space on desktop */}
       <div className="hidden lg:block" />
 
-      <DropdownMenu>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="flex items-center gap-2 h-9 rounded-xl">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex items-center gap-2 h-9 rounded-xl"
+            onClick={() => setIsOpen(!isOpen)}
+          >
             <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center">
               <span className="text-xs font-semibold text-accent-foreground">
                 {profile?.nama?.charAt(0).toUpperCase() ?? 'A'}
@@ -64,14 +77,18 @@ export default function Topbar({ profile, onMenuClick }: TopbarProps) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/dashboard/profil" className="cursor-pointer">
-              <User className="w-4 h-4" />
-              <span className="capitalize">{profile?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
-            </Link>
+          <DropdownMenuItem 
+            onClick={handleProfileClick}
+            className="cursor-pointer"
+          >
+            <User className="w-4 h-4" />
+            <span className="capitalize">{profile?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+          <DropdownMenuItem 
+            onClick={handleLogout} 
+            className="text-destructive focus:text-destructive cursor-pointer"
+          >
             <LogOut className="w-4 h-4" />
             Keluar
           </DropdownMenuItem>
