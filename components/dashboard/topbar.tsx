@@ -25,6 +25,19 @@ export default function Topbar({ profile, onMenuClick }: TopbarProps) {
 
       {/* Right side - empty (profile removed) */}
       <div className="flex items-center gap-3">
+        {profile?.profile_photo_url ? (
+          <img 
+            src={profile.profile_photo_url} 
+            alt={profile.nama} 
+            className="w-8 h-8 rounded-full object-cover border-2 border-border"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+            <span className="text-xs font-semibold text-accent-foreground">
+              {profile?.nama?.charAt(0).toUpperCase() ?? 'A'}
+            </span>
+          </div>
+        )}
         <span className="text-sm text-muted-foreground hidden sm:block">
           {profile?.nama ?? 'Admin'}
         </span>

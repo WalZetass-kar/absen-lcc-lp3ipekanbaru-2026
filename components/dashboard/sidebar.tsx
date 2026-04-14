@@ -122,10 +122,18 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-xs font-semibold text-sidebar-primary-foreground">
-              {profile?.nama?.charAt(0).toUpperCase() ?? 'A'}
-            </span>
+          <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+            {profile?.profile_photo_url ? (
+              <img 
+                src={profile.profile_photo_url} 
+                alt={profile.nama} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-xs font-semibold text-sidebar-primary-foreground">
+                {profile?.nama?.charAt(0).toUpperCase() ?? 'A'}
+              </span>
+            )}
           </div>
           <div className="overflow-hidden">
             <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{profile?.nama ?? 'Admin'}</p>

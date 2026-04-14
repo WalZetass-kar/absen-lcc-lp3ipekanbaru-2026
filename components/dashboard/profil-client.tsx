@@ -164,8 +164,8 @@ export default function ProfilClient({ profile }: { profile: Profile | null }) {
           <CardDescription>Upload foto profil Anda (JPG, PNG, WebP - Max 2MB)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            {/* Photo Preview */}
+          <div className="flex flex-col items-center gap-6">
+            {/* Photo Preview - Centered */}
             <div className="relative">
               <div className="w-32 h-32 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-border">
                 {previewUrl ? (
@@ -187,8 +187,8 @@ export default function ProfilClient({ profile }: { profile: Profile | null }) {
               )}
             </div>
 
-            {/* Upload Controls */}
-            <div className="flex-1 space-y-3 w-full">
+            {/* Upload Controls - Centered */}
+            <div className="w-full max-w-sm space-y-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -199,7 +199,7 @@ export default function ProfilClient({ profile }: { profile: Profile | null }) {
 
               {previewUrl ? (
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Preview foto baru</p>
+                  <p className="text-sm text-muted-foreground text-center">Preview foto baru</p>
                   <div className="flex gap-2">
                     <Button
                       onClick={handleUpload}
