@@ -64,7 +64,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
   }
 
   const sidebarContent = (
-    <aside className="w-64 bg-sidebar flex flex-col h-full shrink-0 lg:rounded-r-2xl">
+    <aside className="w-72 bg-sidebar flex flex-col h-full shrink-0 lg:rounded-r-2xl">
       {/* Brand */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
@@ -164,7 +164,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
             onClick={onMobileClose}
           />
           {/* Drawer */}
-          <div className="relative flex w-64 h-full rounded-r-2xl overflow-hidden">
+          <div className="relative flex w-72 h-full rounded-r-2xl overflow-hidden">
             {sidebarContent}
           </div>
         </div>
