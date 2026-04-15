@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonShimmer } from '@/components/ui/skeleton'
 import { getAllPertemuan, getStudentPermissions, submitPermissionRequest } from '@/lib/student-actions'
 import { CheckCircle, AlertCircle, Loader2, Clock } from 'lucide-react'
 
@@ -39,28 +40,48 @@ function readFileAsDataUrl(file: File) {
 }
 
 export default function PermissionPage() {
-  const [isPending, startTransition] = useTransition()
   const [pertemuan, setPertemuan] = useState<PertemuanOption[]>([])
   const [permissions, setPermissions] = useState<PermissionRecord[]>([])
   const [selectedPertemuan, setSelectedPertemuan] = useState('')
   const [alasan, setAlasan] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    startTransition(async () => {
+    let cancelled = false
+
+    async function loadPermissionData() {
       try {
         const [pertemuanData, permissionsData] = await Promise.all([
           getAllPertemuan(),
           getStudentPermissions(),
         ])
+
+        if (cancelled) {
+          return
+        }
+
         setPertemuan(pertemuanData)
         setPermissions(permissionsData as PermissionRecord[])
       } catch (error) {
         console.error('Error loading permission data:', error)
-        setMessage({ type: 'error', text: 'Gagal memuat data izin. Silakan login ulang.' })
+        if (!cancelled) {
+          setMessage({ type: 'error', text: 'Gagal memuat data izin. Silakan login ulang.' })
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingData(false)
+        }
       }
-    })
+    }
+
+    void loadPermissionData()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleSubmit = async () => {
@@ -69,32 +90,34 @@ export default function PermissionPage() {
       return
     }
 
-    startTransition(async () => {
-      try {
-        let buktiFileUrl: string | undefined
-        let buktiFilePath: string | undefined
+    setIsSubmitting(true)
 
-        if (file) {
-          if (file.size > 5 * 1024 * 1024) {
-            throw new Error('Ukuran file bukti maksimal 5MB')
-          }
+    try {
+      let buktiFileUrl: string | undefined
+      let buktiFilePath: string | undefined
 
-          buktiFileUrl = await readFileAsDataUrl(file)
-          buktiFilePath = file.name
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error('Ukuran file bukti maksimal 5MB')
         }
 
-        await submitPermissionRequest(selectedPertemuan, alasan.trim(), buktiFileUrl, buktiFilePath)
-        setMessage({ type: 'success', text: 'Permintaan izin berhasil dikirim!' })
-        setSelectedPertemuan('')
-        setAlasan('')
-        setFile(null)
-
-        const updatedPermissions = await getStudentPermissions()
-        setPermissions(updatedPermissions as PermissionRecord[])
-      } catch (error) {
-        setMessage({ type: 'error', text: (error as Error).message || 'Gagal mengirim permintaan' })
+        buktiFileUrl = await readFileAsDataUrl(file)
+        buktiFilePath = file.name
       }
-    })
+
+      await submitPermissionRequest(selectedPertemuan, alasan.trim(), buktiFileUrl, buktiFilePath)
+      setMessage({ type: 'success', text: 'Permintaan izin berhasil dikirim!' })
+      setSelectedPertemuan('')
+      setAlasan('')
+      setFile(null)
+
+      const updatedPermissions = await getStudentPermissions()
+      setPermissions(updatedPermissions as PermissionRecord[])
+    } catch (error) {
+      setMessage({ type: 'error', text: (error as Error).message || 'Gagal mengirim permintaan' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -106,6 +129,46 @@ export default function PermissionPage() {
       default:
         return <Badge variant="secondary">Menunggu</Badge>
     }
+  }
+
+  if (isLoadingData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <SkeletonShimmer className="h-8 w-48" />
+          <SkeletonShimmer className="mt-2 h-4 w-72" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <SkeletonShimmer className="h-6 w-52" />
+            <SkeletonShimmer className="h-4 w-80" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <SkeletonShimmer className="h-10 w-full rounded-md" />
+            <SkeletonShimmer className="h-24 w-full rounded-xl" />
+            <SkeletonShimmer className="h-10 w-full rounded-md" />
+            <SkeletonShimmer className="h-11 w-full rounded-md" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SkeletonShimmer className="h-6 w-40" />
+            <SkeletonShimmer className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="rounded-lg border p-4 space-y-2">
+                <SkeletonShimmer className="h-4 w-36" />
+                <SkeletonShimmer className="h-4 w-24" />
+                <SkeletonShimmer className="h-4 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -174,11 +237,11 @@ export default function PermissionPage() {
 
           <Button
             onClick={handleSubmit}
-            disabled={isPending || !selectedPertemuan || !alasan.trim()}
+            disabled={isSubmitting || !selectedPertemuan || !alasan.trim()}
             className="w-full"
           >
-            {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isPending ? 'Mengirim...' : 'Ajukan Permintaan'}
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isSubmitting ? 'Mengirim...' : 'Ajukan Permintaan'}
           </Button>
         </CardContent>
       </Card>

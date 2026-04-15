@@ -61,6 +61,24 @@ export function buildMemberEmail(nim: string) {
   return `${normalizeNim(nim)}@${MEMBER_EMAIL_DOMAIN}`
 }
 
+function getPasswordCandidates(nim: string, password: string) {
+  const normalizedNim = normalizeNim(nim)
+  const candidates = [password]
+
+  // Akun mahasiswa lama menggunakan password default = NIM.
+  // Jika NIM lebih pendek dari 6 karakter, password disimpan dengan padding
+  // karena Supabase Auth mewajibkan panjang minimal 6 karakter.
+  if (password === normalizedNim && password.length < SUPABASE_MIN_PASSWORD_LENGTH) {
+    const paddedPassword = normalizedNim.padEnd(SUPABASE_MIN_PASSWORD_LENGTH, '0')
+
+    if (!candidates.includes(paddedPassword)) {
+      candidates.push(paddedPassword)
+    }
+  }
+
+  return candidates
+}
+
 
 async function findAuthUserByEmail(email: string) {
   const admin = createAdminClient()
@@ -290,20 +308,26 @@ export async function syncMemberAuthUserById(input: SyncMemberAuthUserByIdInput)
 export async function verifyMemberCredentials(nim: string, password: string) {
   const credentialClient = createCredentialClient()
   const email = buildMemberEmail(nim)
-  const { data, error } = await credentialClient.auth.signInWithPassword({
-    email,
-    password,
-  })
+  const passwordCandidates = getPasswordCandidates(nim, password)
 
-  if (error || !data.user) {
-    return null
+  for (const candidatePassword of passwordCandidates) {
+    const { data, error } = await credentialClient.auth.signInWithPassword({
+      email,
+      password: candidatePassword,
+    })
+
+    if (error || !data.user) {
+      continue
+    }
+
+    return {
+      email,
+      mustChangePassword: Boolean(data.user.app_metadata?.must_change_password),
+      userId: data.user.id,
+    }
   }
 
-  return {
-    email,
-    mustChangePassword: Boolean(data.user.app_metadata?.must_change_password),
-    userId: data.user.id,
-  }
+  return null
 }
 
 export async function updateMemberPassword(

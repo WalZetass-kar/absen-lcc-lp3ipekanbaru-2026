@@ -238,6 +238,7 @@ export interface MeetingFeedback {
   komentar?: string
   created_at: string
   updated_at: string
+  pertemuan?: Pick<Pertemuan, 'nomor_pertemuan' | 'tanggal'>
 }
 
 export interface StudentAchievement {

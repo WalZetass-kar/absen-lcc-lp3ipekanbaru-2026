@@ -1,13 +1,111 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getStudentSessionUserId } from '@/lib/student-session'
 import { NextRequest, NextResponse } from 'next/server'
+
+type PhotoTarget = {
+  currentPhotoUrl: string | null
+  id: string
+  storagePrefix: string
+  table: 'mahasiswa' | 'profiles'
+}
+
+function getStoredFileName(url: string | null) {
+  return url?.split('/').pop() ?? null
+}
+
+async function resolvePhotoTarget() {
+  const supabase = await createClient()
+  const admin = createAdminClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: profile, error } = await admin
+      .from('profiles')
+      .select('profile_photo_url')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (error) {
+      throw error
+    }
+
+    return {
+      admin,
+      target: {
+        currentPhotoUrl: profile?.profile_photo_url ?? null,
+        id: user.id,
+        storagePrefix: user.id,
+        table: 'profiles',
+      } satisfies PhotoTarget,
+    }
+  }
+
+  const studentUserId = await getStudentSessionUserId()
+
+  if (!studentUserId) {
+    return { admin, target: null }
+  }
+
+  const { data: student, error } = await admin
+    .from('mahasiswa')
+    .select('id, profile_photo_url')
+    .eq('user_id', studentUserId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  if (!student) {
+    return { admin, target: null }
+  }
+
+  return {
+    admin,
+    target: {
+      currentPhotoUrl: student.profile_photo_url ?? null,
+      id: student.id,
+      storagePrefix: `students/${student.id}`,
+      table: 'mahasiswa',
+    } satisfies PhotoTarget,
+  }
+}
+
+async function updatePhotoReference(target: PhotoTarget, publicUrl: string | null) {
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from(target.table)
+    .update({ profile_photo_url: publicUrl })
+    .eq('id', target.id)
+
+  return error
+}
+
+export async function GET() {
+  try {
+    const { target } = await resolvePhotoTarget()
+
+    if (!target) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    return NextResponse.json({ url: target.currentPhotoUrl })
+  } catch (error) {
+    console.error('Profile photo fetch error:', error)
+    return NextResponse.json({
+      error: 'Internal server error',
+    }, { status: 500 })
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { admin, target } = await resolvePhotoTarget()
+
+    if (!target) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -34,29 +132,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get current profile to check for old photo
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('profile_photo_url')
-      .eq('id', user.id)
-      .single()
-
     // Delete old photo if exists
-    if (profile?.profile_photo_url) {
-      const oldPath = profile.profile_photo_url.split('/').pop()
+    if (target.currentPhotoUrl) {
+      const oldPath = getStoredFileName(target.currentPhotoUrl)
       if (oldPath) {
-        await supabase.storage
+        await admin.storage
           .from('profile-photos')
-          .remove([`${user.id}/${oldPath}`])
+          .remove([`${target.storagePrefix}/${oldPath}`])
       }
     }
 
     // Upload new photo
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}.${fileExt}`
-    const filePath = `${user.id}/${fileName}`
+    const filePath = `${target.storagePrefix}/${fileName}`
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await admin.storage
       .from('profile-photos')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -71,15 +162,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = admin.storage
       .from('profile-photos')
       .getPublicUrl(filePath)
 
-    // Update profile with new photo URL
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ profile_photo_url: publicUrl })
-      .eq('id', user.id)
+    const updateError = await updatePhotoReference(target, publicUrl)
 
     if (updateError) {
       console.error('Update error:', updateError)
@@ -103,36 +190,23 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { admin, target } = await resolvePhotoTarget()
+
+    if (!target) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get current profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('profile_photo_url')
-      .eq('id', user.id)
-      .single()
-
     // Delete photo from storage
-    if (profile?.profile_photo_url) {
-      const oldPath = profile.profile_photo_url.split('/').pop()
+    if (target.currentPhotoUrl) {
+      const oldPath = getStoredFileName(target.currentPhotoUrl)
       if (oldPath) {
-        await supabase.storage
+        await admin.storage
           .from('profile-photos')
-          .remove([`${user.id}/${oldPath}`])
+          .remove([`${target.storagePrefix}/${oldPath}`])
       }
     }
 
-    // Update profile to remove photo URL
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ profile_photo_url: null })
-      .eq('id', user.id)
+    const updateError = await updatePhotoReference(target, null)
 
     if (updateError) {
       return NextResponse.json({ 

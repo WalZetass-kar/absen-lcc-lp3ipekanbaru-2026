@@ -8,35 +8,58 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonShimmer } from '@/components/ui/skeleton'
 import { MessageSquare, Star, CheckCircle, AlertCircle } from 'lucide-react'
 import { getAllPertemuan, submitMeetingFeedback, getStudentFeedbackHistory } from '@/lib/student-actions'
+import type { MeetingFeedback, Pertemuan } from '@/lib/types'
+
+type FeedbackMeetingOption = Pick<Pertemuan, 'id' | 'nomor_pertemuan' | 'tanggal'>
 
 export default function FeedbackPage() {
-  const [pertemuan, setPertemuan] = useState<any[]>([])
-  const [feedbackHistory, setFeedbackHistory] = useState<any[]>([])
+  const [pertemuan, setPertemuan] = useState<FeedbackMeetingOption[]>([])
+  const [feedbackHistory, setFeedbackHistory] = useState<MeetingFeedback[]>([])
   const [selectedPertemuan, setSelectedPertemuan] = useState('')
   const [ratingMateri, setRatingMateri] = useState(0)
   const [ratingMentor, setRatingMentor] = useState(0)
   const [komentar, setKomentar] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
-    loadData()
-  }, [])
+    let cancelled = false
 
-  async function loadData() {
-    try {
-      const [pertemuanData, historyData] = await Promise.all([
-        getAllPertemuan(),
-        getStudentFeedbackHistory(),
-      ])
-      setPertemuan(pertemuanData)
-      setFeedbackHistory(historyData)
-    } catch (error) {
-      console.error('Error loading data:', error)
+    async function loadData() {
+      try {
+        const [pertemuanData, historyData] = await Promise.all([
+          getAllPertemuan(),
+          getStudentFeedbackHistory(),
+        ])
+
+        if (cancelled) {
+          return
+        }
+
+        setPertemuan((pertemuanData ?? []) as FeedbackMeetingOption[])
+        setFeedbackHistory(historyData)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading data:', error)
+          setMessage({ type: 'error', text: 'Gagal memuat halaman feedback. Silakan login ulang.' })
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingData(false)
+        }
+      }
     }
-  }
+
+    void loadData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleSubmit() {
     if (!selectedPertemuan || ratingMateri === 0 || ratingMentor === 0) {
@@ -44,7 +67,7 @@ export default function FeedbackPage() {
       return
     }
 
-    setLoading(true)
+    setSubmitting(true)
     try {
       const result = await submitMeetingFeedback(selectedPertemuan, ratingMateri, ratingMentor, komentar)
       
@@ -54,14 +77,14 @@ export default function FeedbackPage() {
         setRatingMateri(0)
         setRatingMentor(0)
         setKomentar('')
-        await loadData()
+        setFeedbackHistory(await getStudentFeedbackHistory())
       } else {
         setMessage({ type: 'error', text: result.error || 'Gagal mengirim feedback' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Terjadi kesalahan' })
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -82,6 +105,50 @@ export default function FeedbackPage() {
             />
           </button>
         ))}
+      </div>
+    )
+  }
+
+  if (loadingData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <SkeletonShimmer className="h-8 w-56" />
+          <SkeletonShimmer className="mt-2 h-4 w-72" />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <SkeletonShimmer className="h-6 w-52" />
+            <SkeletonShimmer className="h-4 w-80" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <SkeletonShimmer className="h-10 w-full rounded-md" />
+            <SkeletonShimmer className="h-8 w-48" />
+            <SkeletonShimmer className="h-8 w-48" />
+            <SkeletonShimmer className="h-24 w-full rounded-xl" />
+            <SkeletonShimmer className="h-11 w-full rounded-md" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SkeletonShimmer className="h-6 w-44" />
+            <SkeletonShimmer className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="rounded-xl border p-4 space-y-3">
+                <SkeletonShimmer className="h-4 w-32" />
+                <div className="grid grid-cols-2 gap-4">
+                  <SkeletonShimmer className="h-4 w-full" />
+                  <SkeletonShimmer className="h-4 w-full" />
+                </div>
+                <SkeletonShimmer className="h-16 w-full rounded-lg" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -154,10 +221,10 @@ export default function FeedbackPage() {
 
           <Button
             onClick={handleSubmit}
-            disabled={loading || !selectedPertemuan || ratingMateri === 0 || ratingMentor === 0}
+            disabled={submitting || !selectedPertemuan || ratingMateri === 0 || ratingMentor === 0}
             className="w-full"
           >
-            {loading ? 'Mengirim...' : 'Kirim Feedback'}
+            {submitting ? 'Mengirim...' : 'Kirim Feedback'}
           </Button>
         </CardContent>
       </Card>
@@ -175,9 +242,11 @@ export default function FeedbackPage() {
                 <div key={feedback.id} className="p-4 rounded-xl border bg-muted/30">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <Badge variant="default">Pertemuan {feedback.pertemuan_id}</Badge>
+                      <Badge variant="default">
+                        Pertemuan {feedback.pertemuan?.nomor_pertemuan ?? '-'}
+                      </Badge>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(feedback.created_at).toLocaleDateString('id-ID')}
+                        {new Date(feedback.pertemuan?.tanggal ?? feedback.created_at).toLocaleDateString('id-ID')}
                       </p>
                     </div>
                   </div>

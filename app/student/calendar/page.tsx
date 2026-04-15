@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { SkeletonShimmer } from '@/components/ui/skeleton'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAttendanceCalendar } from '@/lib/student-actions'
 import type { CalendarDay } from '@/lib/types'
@@ -92,8 +92,23 @@ export default function CalendarPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="h-64 flex items-center justify-center">
-              <p className="text-muted-foreground">Memuat kalender...</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 7 }).map((_, index) => (
+                  <SkeletonShimmer key={`calendar-header-${index}`} className="h-8 w-full rounded-md" />
+                ))}
+                {Array.from({ length: 35 }).map((_, index) => (
+                  <SkeletonShimmer key={`calendar-cell-${index}`} className="aspect-square w-full rounded-xl" />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`calendar-legend-${index}`} className="flex items-center gap-2">
+                    <SkeletonShimmer className="h-6 w-6 rounded-md" />
+                    <SkeletonShimmer className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SkeletonShimmer } from '@/components/ui/skeleton'
 import { Bell, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAllAnnouncementsWithReadStatus, markAnnouncementAsRead } from '@/lib/student-actions'
 
@@ -75,14 +76,14 @@ export default function AnnouncementsPage() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i}>
               <CardHeader>
-                <div className="h-6 bg-muted rounded w-3/4" />
-                <div className="h-4 bg-muted rounded w-1/4 mt-2" />
+                <SkeletonShimmer className="h-6 w-3/4" />
+                <SkeletonShimmer className="mt-2 h-4 w-1/4" />
               </CardHeader>
               <CardContent>
-                <div className="h-4 bg-muted rounded w-full mb-2" />
-                <div className="h-4 bg-muted rounded w-5/6" />
+                <SkeletonShimmer className="mb-2 h-4 w-full" />
+                <SkeletonShimmer className="h-4 w-5/6" />
               </CardContent>
             </Card>
           ))}

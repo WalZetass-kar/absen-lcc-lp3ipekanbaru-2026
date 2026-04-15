@@ -4,14 +4,15 @@ import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, Loader2, X, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { uploadStudentProfilePhoto, deleteStudentProfilePhoto } from '@/lib/student-actions'
+import { useProfile } from '@/lib/profile-context'
 
 export default function StudentProfilePhotoUpload({ userName }: { userName: string }) {
   const router = useRouter()
+  const { profilePhoto, uploadProfilePhoto, removeProfilePhoto, isUploading: isProfileUploading } = useProfile()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isUploading = isProfileUploading
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -45,14 +46,10 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
     const file = fileInputRef.current?.files?.[0]
     if (!file) return
 
-    setIsUploading(true)
     setError(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const result = await uploadStudentProfilePhoto(formData)
+      const result = await uploadProfilePhoto(file)
 
       if (!result.success) {
         throw new Error(result.error || 'Upload gagal')
@@ -65,8 +62,6 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
-    } finally {
-      setIsUploading(false)
     }
   }
 
@@ -81,11 +76,10 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
   async function handleDelete() {
     if (!confirm('Hapus foto profil?')) return
 
-    setIsUploading(true)
     setError(null)
 
     try {
-      const result = await deleteStudentProfilePhoto()
+      const result = await removeProfilePhoto()
 
       if (!result.success) {
         throw new Error(result.error || 'Hapus foto gagal')
@@ -94,8 +88,6 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
-    } finally {
-      setIsUploading(false)
     }
   }
 
@@ -106,6 +98,8 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
         <div className="w-32 h-32 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-border">
           {previewUrl ? (
             <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+          ) : profilePhoto ? (
+            <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" />
           ) : (
             <User className="w-16 h-16 text-muted-foreground" />
           )}
@@ -170,7 +164,7 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
             <Button
               variant="outline"
               onClick={handleDelete}
-              disabled={isUploading}
+              disabled={isUploading || !profilePhoto}
               className="w-full text-destructive hover:text-destructive"
             >
               {isUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

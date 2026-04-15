@@ -8,7 +8,7 @@ interface ProfileContextType {
   /** Upload a new profile photo file to the server */
   uploadProfilePhoto: (file: File) => Promise<{ success: boolean; error?: string }>
   /** Remove the current profile photo from the server */
-  removeProfilePhoto: () => Promise<void>
+  removeProfilePhoto: () => Promise<{ success: boolean; error?: string }>
   /** Whether the context has loaded the photo from the server */
   isLoaded: boolean
   /** Whether an upload/delete operation is in progress */
@@ -18,7 +18,7 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType>({
   profilePhoto: null,
   uploadProfilePhoto: async () => ({ success: false }),
-  removeProfilePhoto: async () => {},
+  removeProfilePhoto: async () => ({ success: false }),
   isLoaded: false,
   isUploading: false,
 })
@@ -35,9 +35,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         const res = await fetch('/api/profile-photo')
         if (res.ok) {
           const data = await res.json()
-          if (data.url) {
-            setProfilePhoto(data.url)
-          }
+          setProfilePhoto(data.url ?? null)
         }
       } catch {
         // Silently fail — no photo
@@ -77,10 +75,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const removeProfilePhoto = useCallback(async () => {
     setIsUploading(true)
     try {
-      await fetch('/api/profile-photo', { method: 'DELETE' })
+      const res = await fetch('/api/profile-photo', { method: 'DELETE' })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        return { success: false, error: data.error || 'Gagal menghapus foto' }
+      }
+
       setProfilePhoto(null)
+      return { success: true }
     } catch {
-      // Ignore
+      return { success: false, error: 'Terjadi kesalahan saat menghapus foto' }
     } finally {
       setIsUploading(false)
     }

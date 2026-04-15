@@ -26,6 +26,27 @@ type StudentRecord = {
   profile_photo_url?: string | null
 }
 
+function getStudentActionErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
+
+  if (message.includes('missing supabase environment variable: student_session_secret')) {
+    return 'Konfigurasi server belum lengkap. Isi STUDENT_SESSION_SECRET agar login mahasiswa bisa dipakai.'
+  }
+
+  if (message.includes('missing supabase environment variable: supabase_service_role_key')) {
+    return 'Konfigurasi server belum lengkap. Isi SUPABASE_SERVICE_ROLE_KEY agar login mahasiswa bisa dipakai.'
+  }
+
+  if (message.includes('missing supabase environment variable: next_public_supabase_url')
+    || message.includes('missing supabase environment variable: next_public_supabase_anon_key')) {
+    return 'Konfigurasi Supabase belum lengkap. Periksa NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+  }
+
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Terjadi kesalahan pada sistem mahasiswa. Silakan coba lagi.'
+}
+
 function takeFirst<T>(data: T | T[] | null): T | null {
   if (!data) return null
   return Array.isArray(data) ? (data[0] ?? null) : data
@@ -74,6 +95,7 @@ async function requireCurrentStudent() {
   const userId = await getStudentSessionUserId()
 
   if (!userId) {
+    await clearStudentSessionCookie()
     throw new Error('Session tidak valid. Silakan login ulang.')
   }
 
@@ -124,53 +146,52 @@ async function migrateLegacyStudentAccount(record: LegacyStudentLoginRecord, pas
 // Student login with NIM/password backed by Supabase Auth.
 // Legacy student_accounts users are migrated on first successful login.
 export async function studentLogin(nim: string, password: string): Promise<{ success?: boolean; error?: string; mustChangePassword?: boolean }> {
-  let normalizedNim: string
-
   try {
-    normalizedNim = normalizeNim(nim)
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'NIM tidak valid' }
-  }
+    const normalizedNim = normalizeNim(nim)
 
-  if (!password) {
-    return { error: 'NIM dan password wajib diisi' }
-  }
-
-  const authResult = await verifyMemberCredentials(normalizedNim, password)
-
-  if (authResult) {
-    const linkedStudent = await linkStudentUserIdByNim(normalizedNim, authResult.userId)
-
-    if (!linkedStudent) {
-      return { error: 'Akun anggota belum terhubung ke data mahasiswa. Hubungi admin.' }
+    if (!password) {
+      return { error: 'NIM dan password wajib diisi' }
     }
 
-    await setStudentSessionCookie(authResult.userId)
+    const authResult = await verifyMemberCredentials(normalizedNim, password)
+
+    if (authResult) {
+      const linkedStudent = await linkStudentUserIdByNim(normalizedNim, authResult.userId)
+
+      if (!linkedStudent) {
+        return { error: 'Akun anggota belum terhubung ke data mahasiswa. Hubungi admin.' }
+      }
+
+      await setStudentSessionCookie(authResult.userId)
+
+      return {
+        success: true,
+        mustChangePassword: authResult.mustChangePassword,
+      }
+    }
+
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('login_student', {
+      p_nim: normalizedNim,
+      p_password: password,
+    })
+
+    const legacyAccount = takeFirst(data as LegacyStudentLoginRecord | LegacyStudentLoginRecord[] | null)
+
+    if (error || !legacyAccount?.mahasiswa_id) {
+      return { error: 'NIM atau password salah' }
+    }
+
+    const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
+    await setStudentSessionCookie(migratedAccount.userId)
 
     return {
       success: true,
-      mustChangePassword: authResult.mustChangePassword,
+      mustChangePassword: migratedAccount.mustChangePassword,
     }
-  }
-
-  const supabase = await createClient()
-  const { data, error } = await supabase.rpc('login_student', {
-    p_nim: normalizedNim,
-    p_password: password,
-  })
-
-  const legacyAccount = takeFirst(data as LegacyStudentLoginRecord | LegacyStudentLoginRecord[] | null)
-
-  if (error || !legacyAccount?.mahasiswa_id) {
-    return { error: 'NIM atau password salah' }
-  }
-
-  const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
-  await setStudentSessionCookie(migratedAccount.userId)
-
-  return {
-    success: true,
-    mustChangePassword: migratedAccount.mustChangePassword,
+  } catch (error) {
+    console.error('[studentLogin] gagal login mahasiswa:', error)
+    return { error: getStudentActionErrorMessage(error) }
   }
 }
 
@@ -572,24 +593,39 @@ export async function getAllAnnouncementsWithReadStatus(page: number = 1, limit:
   
   const { data, error, count } = await admin
     .from('announcements')
-    .select(`
-      *,
-      announcements_read!left(id, read_at)
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (error) throw error
 
+  const announcementIds = (data ?? []).map((item) => item.id)
+  let readRecords: { announcement_id: string; read_at: string }[] = []
+
+  if (announcementIds.length > 0) {
+    const { data: reads, error: readError } = await admin
+      .from('announcements_read')
+      .select('announcement_id, read_at')
+      .eq('mahasiswa_id', student.id)
+      .in('announcement_id', announcementIds)
+
+    if (readError) {
+      throw readError
+    }
+
+    readRecords = (reads ?? []) as { announcement_id: string; read_at: string }[]
+  }
+
+  const readMap = new Map(
+    readRecords.map((record) => [record.announcement_id, record.read_at]),
+  )
+
   const announcements = (data ?? []).map((item) => {
-    const readRecords = item.announcements_read || []
-    const isRead = readRecords.some((r: any) => r.id)
-    
     return {
       ...item,
-      is_read: isRead,
-      read_at: readRecords[0]?.read_at || null,
+      is_read: readMap.has(item.id),
+      read_at: readMap.get(item.id) ?? null,
     }
   })
 
@@ -719,12 +755,29 @@ export async function getStudentFeedbackHistory(): Promise<MeetingFeedback[]> {
 
   const { data, error } = await admin
     .from('meeting_feedback')
-    .select('*')
+    .select(`
+      *,
+      pertemuan:pertemuan_id (
+        nomor_pertemuan,
+        tanggal
+      )
+    `)
     .eq('mahasiswa_id', student.id)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as MeetingFeedback[]
+
+  return (data ?? []).map((item) => {
+    const pertemuan = Array.isArray(item.pertemuan) ? item.pertemuan[0] : item.pertemuan
+
+    return {
+      ...item,
+      pertemuan: pertemuan ? {
+        nomor_pertemuan: pertemuan.nomor_pertemuan,
+        tanggal: pertemuan.tanggal,
+      } : undefined,
+    }
+  }) as MeetingFeedback[]
 }
 
 // 8. GET STUDENT ACHIEVEMENTS
