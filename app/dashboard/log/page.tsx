@@ -5,7 +5,7 @@ import LogClient from '@/components/dashboard/log-client'
 export default async function LogPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/admin/login')
+  if (!user) redirect('/auth/x7Kp2m/gateway')
 
   const { data: profile } = await supabase
     .from('profiles')

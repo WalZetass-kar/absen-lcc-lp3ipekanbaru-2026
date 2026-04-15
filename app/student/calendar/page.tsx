@@ -14,22 +14,37 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadCalendar()
-  }, [currentDate])
+    let cancelled = false
 
-  async function loadCalendar() {
-    setLoading(true)
-    try {
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth() + 1
-      const days = await getAttendanceCalendar(year, month)
-      setCalendarDays(days)
-    } catch (error) {
-      console.error('Error loading calendar:', error)
-    } finally {
-      setLoading(false)
+    async function loadCalendar() {
+      setLoading(true)
+      try {
+        const year = currentDate.getFullYear()
+        const month = currentDate.getMonth() + 1
+        const days = await getAttendanceCalendar(year, month)
+
+        if (cancelled) {
+          return
+        }
+
+        setCalendarDays(days)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading calendar:', error)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadCalendar()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentDate])
 
   function previousMonth() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))

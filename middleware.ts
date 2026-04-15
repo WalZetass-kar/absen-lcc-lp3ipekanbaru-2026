@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const adminLoginRoutes = ['/auth/admin/login', '/auth/login']
+  const adminLoginRoutes = ['/auth/x7Kp2m/gateway', '/auth/login']
   const studentLoginRoutes = ['/auth/mahasiswa/login', '/student/login']
   const publicRoutes = [...adminLoginRoutes, ...studentLoginRoutes, '/login', '/lcc']
   const isPublicRoute = publicRoutes.includes(pathname)
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   // Protect admin dashboard - requires Supabase auth
   if (!user && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/auth/admin/login', request.url))
+    return NextResponse.redirect(new URL('/auth/x7Kp2m/gateway', request.url))
   }
 
   // Protect student routes - requires student session

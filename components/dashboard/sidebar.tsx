@@ -39,7 +39,7 @@ const navItems = [
 ]
 
 const adminOnlyItems = [
-  { href: '/dashboard/admin', label: 'Manajemen Admin', icon: ShieldCheck },
+  { href: '/dashboard/ctrl-9Rz', label: 'Manajemen Admin', icon: ShieldCheck },
   { href: '/dashboard/log', label: 'Log Aktivitas', icon: History },
 ]
 
@@ -59,7 +59,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
   async function handleLogout() {
     setIsLoggingOut(true)
     await adminLogout()
-    router.push('/auth/admin/login')
+    router.push('/auth/x7Kp2m/gateway')
     router.refresh()
   }
 

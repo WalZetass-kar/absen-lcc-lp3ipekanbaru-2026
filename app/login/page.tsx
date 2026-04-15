@@ -26,7 +26,7 @@ export default function LoginChoicePage() {
         {/* Login Options */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Admin Login Card */}
-          <Card className="shadow-md border-border hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/auth/admin/login')}>
+          <Card className="shadow-md border-border hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/auth/x7Kp2m/gateway')}>
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3 mb-2">
                 <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">

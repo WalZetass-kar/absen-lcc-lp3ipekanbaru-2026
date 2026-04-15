@@ -23,21 +23,36 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadAnnouncements()
-  }, [page])
+    let cancelled = false
 
-  async function loadAnnouncements() {
-    setLoading(true)
-    try {
-      const result = await getAllAnnouncementsWithReadStatus(page, 10)
-      setAnnouncements(result.announcements as any)
-      setTotalPages(result.totalPages)
-    } catch (error) {
-      console.error('Error loading announcements:', error)
-    } finally {
-      setLoading(false)
+    async function loadAnnouncements() {
+      setLoading(true)
+      try {
+        const result = await getAllAnnouncementsWithReadStatus(page, 10)
+
+        if (cancelled) {
+          return
+        }
+
+        setAnnouncements(result.announcements as AnnouncementWithRead[])
+        setTotalPages(result.totalPages)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading announcements:', error)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadAnnouncements()
+
+    return () => {
+      cancelled = true
+    }
+  }, [page])
 
   async function handleMarkAsRead(announcementId: string) {
     try {

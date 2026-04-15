@@ -727,7 +727,7 @@ export async function createAdmin(email: string, password: string, nama: string,
   
   if (error) throw error
   await logActivity('CREATE_ADMIN', 'ADMIN', `Created ${role} account: ${email}`)
-  revalidatePath('/dashboard/admin')
+  revalidatePath('/dashboard/ctrl-9Rz')
   return data
 }
 
@@ -740,7 +740,7 @@ export async function deleteAdmin(id: string) {
   })
   
   if (error) throw error
-  revalidatePath('/dashboard/admin')
+  revalidatePath('/dashboard/ctrl-9Rz')
 }
 
 // ─── Activity Status ─────────────────────────────────────────

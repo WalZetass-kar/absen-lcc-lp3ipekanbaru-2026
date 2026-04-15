@@ -13,6 +13,39 @@ interface GalleryPhoto {
 
 export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const openLightbox = (index: number) => setSelectedIndex(index)
+  const closeLightbox = useCallback(() => setSelectedIndex(null), [])
+  const goNext = useCallback(() => {
+    setSelectedIndex((current) => {
+      if (current === null || photos.length === 0) {
+        return current
+      }
+
+      return (current + 1) % photos.length
+    })
+  }, [photos.length])
+  const goPrev = useCallback(() => {
+    setSelectedIndex((current) => {
+      if (current === null || photos.length === 0) {
+        return current
+      }
+
+      return (current - 1 + photos.length) % photos.length
+    })
+  }, [photos.length])
+
+  useEffect(() => {
+    if (photos.length === 0 || selectedIndex === null) return
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox()
+      if (e.key === 'ArrowRight') goNext()
+      if (e.key === 'ArrowLeft') goPrev()
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [photos.length, selectedIndex, closeLightbox, goNext, goPrev])
 
   if (photos.length === 0) {
     return (
@@ -25,26 +58,6 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
       </div>
     )
   }
-
-  const openLightbox = (index: number) => setSelectedIndex(index)
-  const closeLightbox = useCallback(() => setSelectedIndex(null), [])
-  const goNext = useCallback(() => {
-    if (selectedIndex !== null) setSelectedIndex((selectedIndex + 1) % photos.length)
-  }, [selectedIndex, photos.length])
-  const goPrev = useCallback(() => {
-    if (selectedIndex !== null) setSelectedIndex((selectedIndex - 1 + photos.length) % photos.length)
-  }, [selectedIndex, photos.length])
-
-  useEffect(() => {
-    if (selectedIndex === null) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox()
-      if (e.key === 'ArrowRight') goNext()
-      if (e.key === 'ArrowLeft') goPrev()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [selectedIndex, closeLightbox, goNext, goPrev])
 
   return (
     <>

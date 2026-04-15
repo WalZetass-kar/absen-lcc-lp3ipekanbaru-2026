@@ -377,7 +377,7 @@ export default async function PublicLCCPage() {
                 Login Mahasiswa
               </Button>
             </Link>
-            <Link href="/auth/admin/login">
+            <Link href="/auth/x7Kp2m/gateway">
               <Button
                 size="lg"
                 variant="ghost"

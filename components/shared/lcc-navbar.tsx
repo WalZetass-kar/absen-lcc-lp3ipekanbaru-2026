@@ -79,7 +79,7 @@ export default function LCCNavbar() {
                 Mahasiswa
               </Button>
             </Link>
-            <Link href="/auth/admin/login">
+            <Link href="/auth/x7Kp2m/gateway">
               <Button
                 size="sm"
                 className="bg-blue-500 hover:bg-blue-600 text-white shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] font-medium"
@@ -130,7 +130,7 @@ export default function LCCNavbar() {
                   Login Mahasiswa
                 </Button>
               </Link>
-              <Link href="/auth/admin/login" className="block">
+              <Link href="/auth/x7Kp2m/gateway" className="block">
                 <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
                   Login Admin
                 </Button>

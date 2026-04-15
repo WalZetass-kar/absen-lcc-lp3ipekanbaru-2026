@@ -28,3 +28,6 @@ node_modules
 .env.keys
 .vercel
 .env*.local
+
+# Admin access documentation (keep private)
+.admin-access.md

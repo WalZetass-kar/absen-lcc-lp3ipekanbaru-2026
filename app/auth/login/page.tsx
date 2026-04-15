@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function AuthLoginAliasPage() {
-  redirect('/auth/admin/login')
+  redirect('/auth/x7Kp2m/gateway')
 }

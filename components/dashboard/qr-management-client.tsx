@@ -213,7 +213,7 @@ export default function QRManagementClient({
                 <div className="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
                   <QrCode className="mx-auto mb-3 h-10 w-10 opacity-40" />
                   <p className="font-medium text-foreground">Belum ada pertemuan yang bisa dipilih</p>
-                  <p className="mt-1 text-sm">Klik tombol "Buat Pertemuan" untuk menambahkan jadwal pertemuan lebih dulu.</p>
+                  <p className="mt-1 text-sm">Klik tombol &quot;Buat Pertemuan&quot; untuk menambahkan jadwal pertemuan lebih dulu.</p>
                 </div>
               ) : (
                 <>

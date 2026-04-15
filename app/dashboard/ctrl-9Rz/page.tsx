@@ -7,7 +7,7 @@ import { AlertCircle } from 'lucide-react'
 export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/admin/login')
+  if (!user) redirect('/auth/x7Kp2m/gateway')
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -16,7 +16,7 @@ export default async function AdminPage() {
     .single()
 
   if (profileError) {
-    console.error('Failed to load admin profile for /dashboard/admin:', profileError)
+    console.error('Failed to load admin profile:', profileError)
     return <AdminPageError message={profileError.message} />
   }
 
@@ -33,7 +33,7 @@ export default async function AdminPage() {
       />
     )
   } catch (error) {
-    console.error('Failed to render /dashboard/admin:', error)
+    console.error('Failed to render admin management page:', error)
 
     return (
       <AdminPageError
