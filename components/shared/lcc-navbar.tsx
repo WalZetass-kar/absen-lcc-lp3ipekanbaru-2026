@@ -69,7 +69,7 @@ export default function LCCNavbar() {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center">
             <Link href="/auth/mahasiswa/login">
               <Button
                 variant="ghost"
@@ -77,14 +77,6 @@ export default function LCCNavbar() {
                 className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition-all duration-300 font-medium"
               >
                 Mahasiswa
-              </Button>
-            </Link>
-            <Link href="/auth/x7Kp2m/gateway">
-              <Button
-                size="sm"
-                className="bg-blue-500 hover:bg-blue-600 text-white shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] font-medium"
-              >
-                Admin Login
               </Button>
             </Link>
           </div>
@@ -128,11 +120,6 @@ export default function LCCNavbar() {
                   className="w-full text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200"
                 >
                   Login Mahasiswa
-                </Button>
-              </Link>
-              <Link href="/auth/x7Kp2m/gateway" className="block">
-                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                  Login Admin
                 </Button>
               </Link>
             </div>

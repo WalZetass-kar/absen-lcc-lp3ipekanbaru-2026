@@ -377,15 +377,6 @@ export default async function PublicLCCPage() {
                 Login Mahasiswa
               </Button>
             </Link>
-            <Link href="/auth/x7Kp2m/gateway">
-              <Button
-                size="lg"
-                variant="ghost"
-                className="text-white hover:text-white hover:bg-white/15 border border-white/30 hover:border-white/50 px-8 py-6 text-base rounded-2xl transition-all duration-500 font-medium"
-              >
-                Login Admin
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
