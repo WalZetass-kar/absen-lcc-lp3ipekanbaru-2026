@@ -137,7 +137,6 @@ function StudentLayoutInner({
     setIsLoggingOut(true)
     await studentLogout()
     router.push('/auth/mahasiswa/login')
-    router.refresh()
   }
 
   return (

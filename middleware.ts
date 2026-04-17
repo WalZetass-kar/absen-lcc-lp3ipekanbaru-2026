@@ -88,14 +88,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  if (hasStudentSession && studentLoginRoutes.includes(pathname)) {
-    return NextResponse.redirect(new URL('/student/dashboard', request.url))
-  }
-
-  if (hasStudentSession && pathname === '/') {
-    return NextResponse.redirect(new URL('/student/dashboard', request.url))
-  }
-
   if (isPublicRoute) {
     return supabaseResponse
   }

@@ -14,7 +14,6 @@ export default function StudentLogoutButton() {
     startTransition(async () => {
       await studentLogout()
       router.push('/auth/mahasiswa/login')
-      router.refresh()
     })
   }
   
