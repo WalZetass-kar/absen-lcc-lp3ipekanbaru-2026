@@ -65,12 +65,21 @@ function getPasswordCandidates(nim: string, password: string) {
   const normalizedNim = normalizeNim(nim)
   const candidates = [password]
 
+  // Try lowercase version of password
+  if (password !== password.toLowerCase()) {
+    candidates.push(password.toLowerCase())
+  }
+
+  // Try normalized NIM as password
+  if (!candidates.includes(normalizedNim)) {
+    candidates.push(normalizedNim)
+  }
+
   // Akun mahasiswa lama menggunakan password default = NIM.
   // Jika NIM lebih pendek dari 6 karakter, password disimpan dengan padding
   // karena Supabase Auth mewajibkan panjang minimal 6 karakter.
-  if (password === normalizedNim && password.length < SUPABASE_MIN_PASSWORD_LENGTH) {
+  if (normalizedNim.length < SUPABASE_MIN_PASSWORD_LENGTH) {
     const paddedPassword = normalizedNim.padEnd(SUPABASE_MIN_PASSWORD_LENGTH, '0')
-
     if (!candidates.includes(paddedPassword)) {
       candidates.push(paddedPassword)
     }

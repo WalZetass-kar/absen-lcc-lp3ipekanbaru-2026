@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
     const email = `${normalizedNim}@mcc.local`
     const admin = createAdminClient()
 
+    console.log('[reset-student-password] Resetting password for:', { nim, normalizedNim, email })
+
     // Find user by email
     const { data: { users }, error: listError } = await admin.auth.admin.listUsers()
     
@@ -25,14 +27,16 @@ export async function POST(request: NextRequest) {
     const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
     if (!user) {
-      return NextResponse.json({ error: 'User tidak ditemukan di Supabase Auth' }, { status: 404 })
+      console.error('[reset-student-password] User not found:', email)
+      return NextResponse.json({ error: `User tidak ditemukan di Supabase Auth dengan email ${email}` }, { status: 404 })
     }
 
-    // Reset password to NIM
-    let password = normalizedNim
-    if (password.length < 6) {
-      password = password.padEnd(6, '0')
-    }
+    console.log('[reset-student-password] User found:', { userId: user.id, email: user.email })
+
+    // Reset password to normalized NIM (lowercase)
+    const password = normalizedNim
+
+    console.log('[reset-student-password] Setting password to:', password)
 
     const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
       password,
@@ -44,14 +48,17 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('Error updating password:', updateError)
-      return NextResponse.json({ error: 'Gagal reset password' }, { status: 500 })
+      return NextResponse.json({ error: 'Gagal reset password: ' + updateError.message }, { status: 500 })
     }
+
+    console.log('[reset-student-password] Password reset successful')
 
     return NextResponse.json({ 
       success: true, 
-      message: `Password berhasil direset ke NIM (${normalizedNim})`,
+      message: `Password berhasil direset ke NIM (${normalizedNim}). Gunakan password ini untuk login.`,
       email,
       userId: user.id,
+      password: normalizedNim, // Show password for debugging
     })
   } catch (error) {
     console.error('Reset password error:', error)
