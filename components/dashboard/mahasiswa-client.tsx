@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown, UserPlus, KeyRound } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown, UserPlus, KeyRound, Loader2 } from 'lucide-react'
 import type { Mahasiswa, Kelas, Prodi } from '@/lib/types'
 
 const PRODI_OPTIONS: Prodi[] = ['Humas', 'Akuntansi', 'Administrasi Bisnis', 'Manajemen Informatika']
@@ -58,6 +58,10 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
 
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Batch create state
+  const [isBatchCreating, setIsBatchCreating] = useState(false)
+  const [batchResult, setBatchResult] = useState<any>(null)
 
   const filtered = useMemo(() => {
     return data.filter(m => {
@@ -173,6 +177,57 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
         setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan saat reset password.')
       }
     })
+  }
+
+  async function handleBatchCreateAccounts() {
+    const mahasiswaWithoutAccounts = data.filter(m => !m.user_id && m.nim)
+    
+    if (mahasiswaWithoutAccounts.length === 0) {
+      setActionError('Semua mahasiswa sudah memiliki akun')
+      return
+    }
+
+    if (!confirm(`Buat akun untuk ${mahasiswaWithoutAccounts.length} mahasiswa yang belum punya akun?`)) {
+      return
+    }
+
+    setIsBatchCreating(true)
+    setActionError(null)
+    setActionSuccess(null)
+    setBatchResult(null)
+
+    try {
+      const response = await fetch('/api/batch-create-student-accounts', {
+        method: 'POST',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setActionError(result.error || 'Gagal batch create')
+        return
+      }
+
+      setBatchResult(result)
+      
+      // Update local data with new user_ids
+      if (result.results && Array.isArray(result.results)) {
+        setData(prev => prev.map(item => {
+          const updated = result.results.find((r: any) => r.id === item.id && r.success)
+          if (updated) {
+            return { ...item, user_id: updated.email }
+          }
+          return item
+        }))
+      }
+
+      setActionSuccess(`Berhasil membuat ${result.successCount} akun mahasiswa. Password default adalah NIM.`)
+    } catch (err) {
+      console.error('handleBatchCreateAccounts error:', err)
+      setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+    } finally {
+      setIsBatchCreating(false)
+    }
   }
 
   function handleAddSubmit(event: FormEvent<HTMLFormElement>) {
@@ -383,6 +438,7 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
   const totalGraphicDesign = data.filter(m => m.kelas === 'Graphic Design').length
   const totalWebDesign = data.filter(m => m.kelas === 'Web Design').length
   const totalActiveAccounts = data.filter(m => Boolean(m.user_id)).length
+  const totalWithoutAccounts = data.filter(m => !m.user_id && m.nim).length
 
   return (
     <div className="space-y-6">
@@ -392,6 +448,27 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
           <p className="text-sm text-muted-foreground mt-0.5">Kelola data anggota LCC sekaligus akun login mahasiswa berbasis NIM</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {totalWithoutAccounts > 0 && (
+            <Button
+              variant="default"
+              onClick={handleBatchCreateAccounts}
+              size="sm"
+              disabled={isBatchCreating || hasLegacyMahasiswaSchema}
+              title={hasLegacyMahasiswaSchema ? 'Jalankan SQL fix schema mahasiswa terlebih dahulu.' : `Buat akun untuk ${totalWithoutAccounts} mahasiswa`}
+            >
+              {isBatchCreating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Membuat Akun...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Batch Create ({totalWithoutAccounts})
+                </>
+              )}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => openAttendancePdf('preview')} size="sm">
             <Printer className="w-4 h-4 mr-2" />
             Preview PDF
@@ -440,6 +517,57 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
         }`}>
           {actionError ?? actionSuccess}
         </div>
+      )}
+
+      {batchResult && (
+        <Card className="border-green-500">
+          <CardHeader>
+            <CardTitle className="text-green-700 text-base">Batch Create Selesai</CardTitle>
+            <p className="text-sm text-muted-foreground">{batchResult.message}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{batchResult.total}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-600">{batchResult.successCount}</p>
+                <p className="text-xs text-muted-foreground">Berhasil</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-red-600">{batchResult.errorCount}</p>
+                <p className="text-xs text-muted-foreground">Gagal</p>
+              </div>
+            </div>
+
+            {batchResult.results && batchResult.results.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                <p className="text-sm font-medium">Detail:</p>
+                {batchResult.results.map((item: any, index: number) => (
+                  <div
+                    key={index}
+                    className={`text-xs p-2 rounded ${
+                      item.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}
+                  >
+                    {item.success ? '✅' : '❌'} {item.nama} ({item.nim})
+                    {item.success && ` - ${item.email}`}
+                    {!item.success && ` - ${item.error}`}
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setBatchResult(null)}
+              className="w-full"
+            >
+              Tutup
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Summary cards */}
