@@ -41,7 +41,7 @@ export default async function LeaderboardPage() {
               </div>
               <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-gray-300">
                 {leaderboard[1].profile_photo_url ? (
-                  <img src={leaderboard[1].profile_photo_url} alt={leaderboard[1].nama} className="w-full h-full object-cover" />
+                  <img src={leaderboard[1].profile_photo_url} alt={leaderboard[1].nama} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <User className="w-8 h-8 text-muted-foreground" />
                 )}
@@ -61,7 +61,7 @@ export default async function LeaderboardPage() {
               </div>
               <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-yellow-400">
                 {leaderboard[0].profile_photo_url ? (
-                  <img src={leaderboard[0].profile_photo_url} alt={leaderboard[0].nama} className="w-full h-full object-cover" />
+                  <img src={leaderboard[0].profile_photo_url} alt={leaderboard[0].nama} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <User className="w-10 h-10 text-muted-foreground" />
                 )}
@@ -81,7 +81,7 @@ export default async function LeaderboardPage() {
               </div>
               <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-amber-500">
                 {leaderboard[2].profile_photo_url ? (
-                  <img src={leaderboard[2].profile_photo_url} alt={leaderboard[2].nama} className="w-full h-full object-cover" />
+                  <img src={leaderboard[2].profile_photo_url} alt={leaderboard[2].nama} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <User className="w-8 h-8 text-muted-foreground" />
                 )}
@@ -117,7 +117,7 @@ export default async function LeaderboardPage() {
                   </div>
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
                     {student.profile_photo_url ? (
-                      <img src={student.profile_photo_url} alt={student.nama} className="w-full h-full object-cover" />
+                      <img src={student.profile_photo_url} alt={student.nama} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <User className="w-6 h-6 text-muted-foreground" />
                     )}

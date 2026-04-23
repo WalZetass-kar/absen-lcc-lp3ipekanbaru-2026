@@ -107,6 +107,7 @@ function AvatarBadge({ size = 'sm' }: { size?: 'sm' | 'md' }) {
         src={profilePhoto}
         alt="Profil"
         className={`${sizeClass} rounded-full object-cover border-2 border-primary/20`}
+        loading="lazy"
       />
     )
   }
@@ -152,6 +153,7 @@ function StudentLayoutInner({
               src="/lp3i-logo.png"
               alt="LP3I"
               className="w-9 h-9 rounded-xl object-contain bg-white p-1"
+              loading="lazy"
             />
             <span className="text-white tracking-wide">LCC</span>
           </Link>

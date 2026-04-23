@@ -97,9 +97,9 @@ export default function StudentProfilePhotoUpload({ userName }: { userName: stri
       <div className="relative">
         <div className="w-32 h-32 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-border">
           {previewUrl ? (
-            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" loading="lazy" />
           ) : profilePhoto ? (
-            <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" />
+            <img src={profilePhoto} alt={userName} className="w-full h-full object-cover" loading="lazy" />
           ) : (
             <User className="w-16 h-16 text-muted-foreground" />
           )}

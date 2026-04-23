@@ -73,6 +73,7 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
               src={photo.imageUrl}
               alt={photo.judul}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              loading="lazy"
               onError={(e) => {
                 const target = e.target as HTMLImageElement
                 target.style.display = 'none'
@@ -130,6 +131,7 @@ export default function LCCGallery({ photos }: { photos: GalleryPhoto[] }) {
               src={photos[selectedIndex].imageUrl}
               alt={photos[selectedIndex].judul}
               className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl"
+              loading="lazy"
             />
             <div className="mt-5 text-center">
               <h3 className="text-white font-semibold text-lg">{photos[selectedIndex].judul}</h3>

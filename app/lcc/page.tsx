@@ -392,6 +392,7 @@ export default async function PublicLCCPage() {
                   src="/lp3i-logo.png"
                   alt="LP3I Pekanbaru"
                   className="h-11 w-11 rounded-lg object-contain"
+                  loading="lazy"
                 />
                 <div>
                   <p className="font-bold text-white text-lg leading-tight tracking-wide">LCC</p>

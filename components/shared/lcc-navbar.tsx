@@ -47,6 +47,7 @@ export default function LCCNavbar() {
               src="/lp3i-logo.png"
               alt="LP3I Pekanbaru"
               className="h-10 w-10 rounded-lg object-contain"
+              loading="lazy"
             />
             <div className="hidden sm:block">
               <p className="font-bold text-slate-900 text-sm leading-tight tracking-wide">LCC</p>

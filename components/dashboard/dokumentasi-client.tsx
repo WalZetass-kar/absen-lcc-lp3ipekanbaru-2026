@@ -163,6 +163,7 @@ export default function DokumentasiClient({ initialData }: DokumentasiClientProp
                     src={doc.file_url}
                     alt={doc.judul}
                     className="w-full h-full object-cover"
+                    loading="lazy"
                     onError={(e) => {
                       (e.target as any).style.display = 'none'
                     }}

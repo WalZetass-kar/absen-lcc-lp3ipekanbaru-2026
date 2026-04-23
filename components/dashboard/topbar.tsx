@@ -30,6 +30,7 @@ export default function Topbar({ profile, onMenuClick }: TopbarProps) {
             src={profile.profile_photo_url} 
             alt={profile.nama} 
             className="w-8 h-8 rounded-full object-cover border-2 border-border"
+            loading="lazy"
           />
         ) : (
           <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">

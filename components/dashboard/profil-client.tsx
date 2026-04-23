@@ -169,9 +169,9 @@ export default function ProfilClient({ profile }: { profile: Profile | null }) {
             <div className="relative">
               <div className="w-32 h-32 rounded-full overflow-hidden bg-muted flex items-center justify-center border-4 border-border">
                 {previewUrl ? (
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" loading="lazy" />
                 ) : currentPhotoUrl ? (
-                  <img src={currentPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={currentPhotoUrl} alt="Profile" className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <User className="w-16 h-16 text-muted-foreground" />
                 )}

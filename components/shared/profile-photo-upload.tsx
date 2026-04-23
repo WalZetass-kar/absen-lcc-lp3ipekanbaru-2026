@@ -137,6 +137,7 @@ export default function ProfilePhotoUpload({ userName = 'User' }: ProfilePhotoUp
                 src={currentPhoto}
                 alt="Foto profil"
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">

@@ -128,6 +128,7 @@ export default function Sidebar({ profile, mobileOpen, onMobileClose }: SidebarP
                 src={profile.profile_photo_url} 
                 alt={profile.nama} 
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
             ) : (
               <span className="text-xs font-semibold text-sidebar-primary-foreground">
