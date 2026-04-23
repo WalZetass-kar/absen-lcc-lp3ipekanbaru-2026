@@ -157,6 +157,7 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
 
     // Try Supabase Auth first
     try {
+      console.log('[studentLogin] Step 1: Trying Supabase Auth')
       const authResult = await verifyMemberCredentials(normalizedNim, password)
 
       if (authResult) {
@@ -165,9 +166,10 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
 
         if (!linkedStudent) {
           console.error('[studentLogin] Failed to link student to user_id')
-          return { error: 'Akun anggota belum terhubung ke data mahasiswa. Hubungi admin.' }
+          return { error: 'Akun login sudah ada, tetapi belum terhubung ke data mahasiswa. Hubungi admin untuk sinkronisasi akun.' }
         }
 
+        console.log('[studentLogin] Login successful via Supabase Auth')
         await setStudentSessionCookie(authResult.userId)
 
         return {
@@ -175,37 +177,54 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
           mustChangePassword: authResult.mustChangePassword,
         }
       }
+      
+      console.log('[studentLogin] Supabase Auth login failed, trying legacy method')
     } catch (authError) {
-      console.log('[studentLogin] Auth verification failed, trying legacy login:', authError)
+      console.log('[studentLogin] Auth verification error:', authError)
     }
 
     // Fallback to legacy student_accounts table
-    console.log('[studentLogin] Trying legacy login via RPC')
+    console.log('[studentLogin] Step 2: Trying legacy login via RPC')
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('login_student', {
       p_nim: normalizedNim,
       p_password: password,
     })
 
-    console.log('[studentLogin] RPC result:', { data, error })
+    console.log('[studentLogin] RPC result:', { 
+      hasData: !!data, 
+      error: error?.message,
+      dataType: Array.isArray(data) ? 'array' : typeof data
+    })
 
     const legacyAccount = takeFirst(data as LegacyStudentLoginRecord | LegacyStudentLoginRecord[] | null)
 
-    if (error || !legacyAccount?.mahasiswa_id) {
-      console.error('[studentLogin] Legacy login failed:', error)
-      return { error: 'NIM atau password salah' }
+    if (error) {
+      console.error('[studentLogin] RPC error:', error)
+      return { error: 'NIM atau password salah. Pastikan NIM dan password sudah benar.' }
+    }
+
+    if (!legacyAccount?.mahasiswa_id) {
+      console.error('[studentLogin] No legacy account found')
+      return { error: 'NIM atau password salah. Jika Anda mahasiswa baru, hubungi admin untuk membuat akun login.' }
     }
 
     console.log('[studentLogin] Legacy login successful, migrating account')
-    const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
-    await setStudentSessionCookie(migratedAccount.userId)
+    try {
+      const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
+      await setStudentSessionCookie(migratedAccount.userId)
 
-    return {
-      success: true,
-      mustChangePassword: migratedAccount.mustChangePassword,
+      console.log('[studentLogin] Migration successful')
+      return {
+        success: true,
+        mustChangePassword: migratedAccount.mustChangePassword,
+      }
+    } catch (migrationError) {
+      console.error('[studentLogin] Migration failed:', migrationError)
+      return { error: 'Gagal migrasi akun. Hubungi admin untuk bantuan.' }
     }
   } catch (error) {
-    console.error('[studentLogin] gagal login mahasiswa:', error)
+    console.error('[studentLogin] Unexpected error:', error)
     return { error: getStudentActionErrorMessage(error) }
   }
 }

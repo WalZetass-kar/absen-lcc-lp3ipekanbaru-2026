@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown, UserPlus } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users, Upload, Download, FileSpreadsheet, Printer, FileDown, UserPlus, KeyRound } from 'lucide-react'
 import type { Mahasiswa, Kelas, Prodi } from '@/lib/types'
 
 const PRODI_OPTIONS: Prodi[] = ['Humas', 'Akuntansi', 'Administrasi Bisnis', 'Manajemen Informatika']
@@ -140,6 +140,37 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
       } catch (err) {
         console.error('handleSyncAccount error:', err)
         setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan saat sinkronisasi akun.')
+      }
+    })
+  }
+
+  function handleResetPassword(mahasiswa: Mahasiswa) {
+    if (!confirm(`Reset password untuk ${mahasiswa.nama} ke NIM (${mahasiswa.nim})?`)) {
+      return
+    }
+
+    setActionError(null)
+    setActionSuccess(null)
+
+    startTransition(async () => {
+      try {
+        const response = await fetch('/api/reset-student-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nim: mahasiswa.nim }),
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          setActionError(result.error || 'Gagal reset password')
+          return
+        }
+
+        setActionSuccess(`Password untuk ${mahasiswa.nama} berhasil direset ke NIM (${mahasiswa.nim}). Mahasiswa dapat login dengan password tersebut.`)
+      } catch (err) {
+        console.error('handleResetPassword error:', err)
+        setActionError(err instanceof Error ? err.message : 'Terjadi kesalahan saat reset password.')
       }
     })
   }
@@ -536,6 +567,19 @@ export default function MahasiswaClient({ initialData }: MahasiswaClientProps) {
                               disabled={isPending || hasLegacyMahasiswaSchema}
                             >
                               <UserPlus className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          {m.user_id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-7 h-7 text-orange-600"
+                              onClick={() => handleResetPassword(m)}
+                              aria-label={`Reset password untuk ${m.nama}`}
+                              title="Reset password ke NIM"
+                              disabled={isPending}
+                            >
+                              <KeyRound className="w-3.5 h-3.5" />
                             </Button>
                           )}
                           <Button
