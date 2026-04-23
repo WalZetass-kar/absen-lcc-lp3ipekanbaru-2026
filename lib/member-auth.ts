@@ -310,23 +310,35 @@ export async function verifyMemberCredentials(nim: string, password: string) {
   const email = buildMemberEmail(nim)
   const passwordCandidates = getPasswordCandidates(nim, password)
 
+  console.log('[verifyMemberCredentials] Attempting login:', {
+    nim,
+    email,
+    passwordCandidatesCount: passwordCandidates.length,
+  })
+
   for (const candidatePassword of passwordCandidates) {
+    console.log('[verifyMemberCredentials] Trying password candidate')
     const { data, error } = await credentialClient.auth.signInWithPassword({
       email,
       password: candidatePassword,
     })
 
-    if (error || !data.user) {
+    if (error) {
+      console.log('[verifyMemberCredentials] Login failed:', error.message)
       continue
     }
 
-    return {
-      email,
-      mustChangePassword: Boolean(data.user.app_metadata?.must_change_password),
-      userId: data.user.id,
+    if (data.user) {
+      console.log('[verifyMemberCredentials] Login successful')
+      return {
+        email,
+        mustChangePassword: Boolean(data.user.app_metadata?.must_change_password),
+        userId: data.user.id,
+      }
     }
   }
 
+  console.log('[verifyMemberCredentials] All password candidates failed')
   return null
 }
 
