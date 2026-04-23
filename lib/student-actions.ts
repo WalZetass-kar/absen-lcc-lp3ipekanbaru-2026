@@ -153,35 +153,50 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
       return { error: 'NIM dan password wajib diisi' }
     }
 
-    const authResult = await verifyMemberCredentials(normalizedNim, password)
+    console.log('[studentLogin] Attempting login for NIM:', normalizedNim)
 
-    if (authResult) {
-      const linkedStudent = await linkStudentUserIdByNim(normalizedNim, authResult.userId)
+    // Try Supabase Auth first
+    try {
+      const authResult = await verifyMemberCredentials(normalizedNim, password)
 
-      if (!linkedStudent) {
-        return { error: 'Akun anggota belum terhubung ke data mahasiswa. Hubungi admin.' }
+      if (authResult) {
+        console.log('[studentLogin] Auth successful, linking student')
+        const linkedStudent = await linkStudentUserIdByNim(normalizedNim, authResult.userId)
+
+        if (!linkedStudent) {
+          console.error('[studentLogin] Failed to link student to user_id')
+          return { error: 'Akun anggota belum terhubung ke data mahasiswa. Hubungi admin.' }
+        }
+
+        await setStudentSessionCookie(authResult.userId)
+
+        return {
+          success: true,
+          mustChangePassword: authResult.mustChangePassword,
+        }
       }
-
-      await setStudentSessionCookie(authResult.userId)
-
-      return {
-        success: true,
-        mustChangePassword: authResult.mustChangePassword,
-      }
+    } catch (authError) {
+      console.log('[studentLogin] Auth verification failed, trying legacy login:', authError)
     }
 
+    // Fallback to legacy student_accounts table
+    console.log('[studentLogin] Trying legacy login via RPC')
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('login_student', {
       p_nim: normalizedNim,
       p_password: password,
     })
 
+    console.log('[studentLogin] RPC result:', { data, error })
+
     const legacyAccount = takeFirst(data as LegacyStudentLoginRecord | LegacyStudentLoginRecord[] | null)
 
     if (error || !legacyAccount?.mahasiswa_id) {
+      console.error('[studentLogin] Legacy login failed:', error)
       return { error: 'NIM atau password salah' }
     }
 
+    console.log('[studentLogin] Legacy login successful, migrating account')
     const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
     await setStudentSessionCookie(migratedAccount.userId)
 
