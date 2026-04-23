@@ -248,6 +248,9 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
   const admin = createAdminClient()
   const normalizedNim = normalizeNim(input.nim)
   const email = buildMemberEmail(normalizedNim)
+  
+  console.log('[ensureMemberAuthUser] Starting', { nim: input.nim, normalizedNim, email })
+  
   const nextAppMetadata: Record<string, unknown> = {
     account_type: 'member',
     must_change_password: Boolean(input.mustChangePassword),
@@ -266,6 +269,8 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
   let created = false
   let user = await findAuthUserByEmail(email)
 
+  console.log('[ensureMemberAuthUser] User lookup result:', { found: !!user, email })
+
   if (!user) {
     // Supabase requires passwords of at least 6 characters.
     // If the NIM is shorter, pad it to meet the minimum requirement.
@@ -273,6 +278,12 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
     if (password.length < SUPABASE_MIN_PASSWORD_LENGTH) {
       password = password.padEnd(SUPABASE_MIN_PASSWORD_LENGTH, '0')
     }
+
+    console.log('[ensureMemberAuthUser] Creating new user', { 
+      email, 
+      passwordLength: password.length,
+      metadata: nextUserMetadata 
+    })
 
     const { data, error } = await admin.auth.admin.createUser({
       app_metadata: nextAppMetadata,
@@ -287,15 +298,29 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
         email,
         errorMessage: error?.message,
         errorStatus: (error as any)?.status,
+        errorCode: (error as any)?.code,
+        fullError: error,
       })
       throw new Error(error?.message || 'Gagal membuat akun anggota di Supabase Auth')
     }
 
+    console.log('[ensureMemberAuthUser] User created successfully', { 
+      userId: data.user.id, 
+      email: data.user.email 
+    })
+
     created = true
     user = data.user
   } else {
+    console.log('[ensureMemberAuthUser] User already exists, updating metadata')
     user = await updateMemberMetadata(user, input)
   }
+
+  console.log('[ensureMemberAuthUser] Completed', { 
+    created, 
+    userId: user.id, 
+    email 
+  })
 
   return {
     created,
