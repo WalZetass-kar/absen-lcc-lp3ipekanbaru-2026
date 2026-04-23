@@ -173,6 +173,12 @@ async function createMahasiswaWithAccount(
 
   try {
     // Step 1: buat atau sinkronkan akun auth di Supabase terlebih dahulu.
+    console.info('[createMahasiswaWithAccount] Step 1: Creating auth user', {
+      nama: trimmedNama,
+      nim: normalizedNim,
+      prodi: input.prodi,
+    })
+
     const authUser = await ensureMemberAuthUser({
       mustChangePassword: true,
       nama: trimmedNama,
@@ -183,11 +189,25 @@ async function createMahasiswaWithAccount(
     authUserId = authUser.userId
     createdAuthUser = authUser.created
 
+    console.info('[createMahasiswaWithAccount] Auth user created/found', {
+      userId: authUserId,
+      created: createdAuthUser,
+      email: authUser.email,
+    })
+
     if (!authUserId) {
       throw new Error('user_id dari Supabase Auth tidak valid setelah pembuatan akun')
     }
 
     // Step 2: simpan data mahasiswa dengan foreign key langsung ke auth.users.
+    console.info('[createMahasiswaWithAccount] Step 2: Inserting mahasiswa record', {
+      kelas: input.kelas,
+      nama: trimmedNama,
+      nim: normalizedNim,
+      prodi: input.prodi,
+      user_id: authUserId,
+    })
+
     const { data: createdMember, error: insertError } = await admin
       .from('mahasiswa')
       .insert({
@@ -213,6 +233,8 @@ async function createMahasiswaWithAccount(
     assertMahasiswaHasId(createdMember, 'createMahasiswaWithAccount')
     insertedMember = createdMember
 
+    console.info('[createMahasiswaWithAccount] Step 3: Syncing auth metadata')
+
     await syncMemberAuthUserById({
       memberId: insertedMember.id,
       mustChangePassword: true,
@@ -225,6 +247,7 @@ async function createMahasiswaWithAccount(
     console.info('[createMahasiswaWithAccount] Berhasil membuat akun mahasiswa', {
       mahasiswaId: insertedMember.id,
       userId: authUserId,
+      email: authUser.email,
     })
 
     if (options?.revalidate !== false) {
