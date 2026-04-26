@@ -233,6 +233,27 @@ async function createMahasiswaWithAccount(
     assertMahasiswaHasId(createdMember, 'createMahasiswaWithAccount')
     insertedMember = createdMember
 
+    // Step 2.5: insert ke student_accounts (password default = NIM)
+    const bcrypt = await import('bcryptjs')
+    const defaultPassword = normalizedNim.length < 6
+      ? normalizedNim.padEnd(6, '0')
+      : normalizedNim
+    const passwordHash = await bcrypt.hash(defaultPassword, 10)
+
+    const { error: studentAccountError } = await admin
+      .from('student_accounts')
+      .upsert({
+        mahasiswa_id: insertedMember.id,
+        nim: normalizedNim,
+        password_hash: passwordHash,
+        must_change_password: true,
+      }, { onConflict: 'mahasiswa_id' })
+
+    if (studentAccountError) {
+      console.error('[createMahasiswaWithAccount] Gagal insert student_accounts:', studentAccountError)
+      throw studentAccountError
+    }
+
     console.info('[createMahasiswaWithAccount] Step 3: Syncing auth metadata')
 
     await syncMemberAuthUserById({
