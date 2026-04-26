@@ -339,6 +339,7 @@ export async function addMahasiswaAction(
   nim?: string,
 ): Promise<ActionResult<Mahasiswa>> {
   try {
+    await requirePermission('edit_mahasiswa')
     const created = await addMahasiswa(nama, kelas, prodi, nim)
     return {
       success: true,
