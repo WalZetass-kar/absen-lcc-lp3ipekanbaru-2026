@@ -265,13 +265,21 @@ async function createMahasiswaWithAccount(
       nim: normalizedNim,
     })
 
+    // Rollback: hapus data mahasiswa jika sudah ter-insert
     if (insertedMember?.id) {
-      await admin.from('mahasiswa').delete().eq('id', insertedMember.id)
+      try {
+        await admin.from('mahasiswa').delete().eq('id', insertedMember.id)
+        console.log('[createMahasiswaWithAccount] Rollback: mahasiswa deleted')
+      } catch (deleteError) {
+        console.error('[createMahasiswaWithAccount] Gagal rollback mahasiswa:', deleteError)
+      }
     }
 
+    // Rollback: hapus auth user jika baru dibuat
     if (createdAuthUser && authUserId) {
       try {
         await deleteMemberAuthUser(authUserId)
+        console.log('[createMahasiswaWithAccount] Rollback: auth user deleted')
       } catch (cleanupError) {
         console.error('[createMahasiswaWithAccount] Gagal cleanup auth user saat rollback:', cleanupError)
       }

@@ -274,13 +274,14 @@ export async function changeStudentPassword(oldPassword: string, newPassword: st
 }
 
 // Get student attendance history
-export async function getStudentAttendance(_mahasiswa_id?: string): Promise<Absensi[]> {
+export async function getStudentAttendance(mahasiswa_id?: string): Promise<Absensi[]> {
   const { student } = await requireCurrentStudent()
+  const targetId = mahasiswa_id || student.id
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('absensi')
     .select('*')
-    .eq('mahasiswa_id', student.id)
+    .eq('mahasiswa_id', targetId)
     .order('tanggal', { ascending: false })
     .order('pertemuan', { ascending: false })
 
@@ -293,8 +294,8 @@ export async function getStudentAttendance(_mahasiswa_id?: string): Promise<Abse
 }
 
 // Get student attendance stats
-export async function getStudentAttendanceStats(_mahasiswa_id?: string): Promise<{ hadir: number; izin: number; alfa: number; total: number; percentage: number }> {
-  const attendance = await getStudentAttendance()
+export async function getStudentAttendanceStats(mahasiswa_id?: string): Promise<{ hadir: number; izin: number; alfa: number; total: number; percentage: number }> {
+  const attendance = await getStudentAttendance(mahasiswa_id)
   const hadir = attendance.filter((item) => item.status === 'Hadir').length
   const izin = attendance.filter((item) => item.status === 'Izin').length
   const alfa = attendance.filter((item) => item.status === 'Alfa').length
@@ -425,13 +426,14 @@ export async function getStudentPermissions() {
 }
 
 // Get student attendance warnings
-export async function getAttendanceWarnings(_mahasiswa_id?: string) {
+export async function getAttendanceWarnings(mahasiswa_id?: string) {
   const { student } = await requireCurrentStudent()
+  const targetId = mahasiswa_id || student.id
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('attendance_warnings')
     .select('*')
-    .eq('mahasiswa_id', student.id)
+    .eq('mahasiswa_id', targetId)
     .order('created_at', { ascending: false })
 
   if (error) throw error

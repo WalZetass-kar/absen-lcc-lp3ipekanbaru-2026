@@ -272,9 +272,9 @@ export async function ensureMemberAuthUser(input: EnsureMemberAuthUserInput) {
   console.log('[ensureMemberAuthUser] User lookup result:', { found: !!user, email })
 
   if (!user) {
-    // Supabase requires passwords of at least 6 characters.
-    // If the NIM is shorter, pad it to meet the minimum requirement.
     let password = input.password ?? normalizedNim
+    
+    // Pastikan password minimal 6 karakter untuk Supabase Auth
     if (password.length < SUPABASE_MIN_PASSWORD_LENGTH) {
       password = password.padEnd(SUPABASE_MIN_PASSWORD_LENGTH, '0')
     }
