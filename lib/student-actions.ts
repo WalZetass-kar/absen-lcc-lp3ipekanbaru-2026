@@ -153,23 +153,17 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
       return { error: 'NIM dan password wajib diisi' }
     }
 
-    console.log('[studentLogin] Attempting login for NIM:', normalizedNim)
-
     // Try Supabase Auth first
     try {
-      console.log('[studentLogin] Step 1: Trying Supabase Auth')
       const authResult = await verifyMemberCredentials(normalizedNim, password)
 
       if (authResult) {
-        console.log('[studentLogin] Auth successful, linking student')
         const linkedStudent = await linkStudentUserIdByNim(normalizedNim, authResult.userId)
 
         if (!linkedStudent) {
-          console.error('[studentLogin] Failed to link student to user_id')
           return { error: 'Akun login sudah ada, tetapi belum terhubung ke data mahasiswa. Hubungi admin untuk sinkronisasi akun.' }
         }
 
-        console.log('[studentLogin] Login successful via Supabase Auth')
         await setStudentSessionCookie(authResult.userId)
 
         return {
@@ -177,54 +171,39 @@ export async function studentLogin(nim: string, password: string): Promise<{ suc
           mustChangePassword: authResult.mustChangePassword,
         }
       }
-      
-      console.log('[studentLogin] Supabase Auth login failed, trying legacy method')
-    } catch (authError) {
-      console.log('[studentLogin] Auth verification error:', authError)
+    } catch {
+      // Auth verification failed, fall through to legacy method
     }
 
     // Fallback to legacy student_accounts table
-    console.log('[studentLogin] Step 2: Trying legacy login via RPC')
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('login_student', {
       p_nim: normalizedNim,
       p_password: password,
     })
 
-    console.log('[studentLogin] RPC result:', { 
-      hasData: !!data, 
-      error: error?.message,
-      dataType: Array.isArray(data) ? 'array' : typeof data
-    })
-
     const legacyAccount = takeFirst(data as LegacyStudentLoginRecord | LegacyStudentLoginRecord[] | null)
 
     if (error) {
-      console.error('[studentLogin] RPC error:', error)
       return { error: 'NIM atau password salah. Pastikan NIM dan password sudah benar.' }
     }
 
     if (!legacyAccount?.mahasiswa_id) {
-      console.error('[studentLogin] No legacy account found')
       return { error: 'NIM atau password salah. Jika Anda mahasiswa baru, hubungi admin untuk membuat akun login.' }
     }
 
-    console.log('[studentLogin] Legacy login successful, migrating account')
     try {
       const migratedAccount = await migrateLegacyStudentAccount(legacyAccount, password)
       await setStudentSessionCookie(migratedAccount.userId)
 
-      console.log('[studentLogin] Migration successful')
       return {
         success: true,
         mustChangePassword: migratedAccount.mustChangePassword,
       }
-    } catch (migrationError) {
-      console.error('[studentLogin] Migration failed:', migrationError)
+    } catch {
       return { error: 'Gagal migrasi akun. Hubungi admin untuk bantuan.' }
     }
   } catch (error) {
-    console.error('[studentLogin] Unexpected error:', error)
     return { error: getStudentActionErrorMessage(error) }
   }
 }
@@ -261,32 +240,34 @@ export async function changeStudentPassword(oldPassword: string, newPassword: st
     return { error: 'Password minimal 6 karakter' }
   }
 
-  const { student, userId } = await requireCurrentStudent()
-  const credentialCheck = await verifyMemberCredentials(student.nim ?? '', oldPassword)
+  try {
+    const { student, userId } = await requireCurrentStudent()
+    const credentialCheck = await verifyMemberCredentials(student.nim ?? '', oldPassword)
 
-  if (!credentialCheck || credentialCheck.userId !== userId) {
-    return { error: 'Password lama salah' }
+    if (!credentialCheck || credentialCheck.userId !== userId) {
+      return { error: 'Password lama salah' }
+    }
+
+    await updateMemberPassword(userId, newPassword, false)
+    revalidatePath('/student/dashboard')
+    return { success: true }
+  } catch (error) {
+    return { error: getStudentActionErrorMessage(error) }
   }
-
-  await updateMemberPassword(userId, newPassword, false)
-  revalidatePath('/student/dashboard')
-  return { success: true }
 }
 
 // Get student attendance history
-export async function getStudentAttendance(mahasiswa_id?: string): Promise<Absensi[]> {
+export async function getStudentAttendance(): Promise<Absensi[]> {
   const { student } = await requireCurrentStudent()
-  const targetId = mahasiswa_id || student.id
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('absensi')
     .select('*')
-    .eq('mahasiswa_id', targetId)
+    .eq('mahasiswa_id', student.id)
     .order('tanggal', { ascending: false })
     .order('pertemuan', { ascending: false })
 
   if (error) {
-    console.error('Error fetching student attendance:', error)
     throw new Error('Gagal mengambil data kehadiran')
   }
 
@@ -294,8 +275,8 @@ export async function getStudentAttendance(mahasiswa_id?: string): Promise<Absen
 }
 
 // Get student attendance stats
-export async function getStudentAttendanceStats(mahasiswa_id?: string): Promise<{ hadir: number; izin: number; alfa: number; total: number; percentage: number }> {
-  const attendance = await getStudentAttendance(mahasiswa_id)
+export async function getStudentAttendanceStats(): Promise<{ hadir: number; izin: number; alfa: number; total: number; percentage: number }> {
+  const attendance = await getStudentAttendance()
   const hadir = attendance.filter((item) => item.status === 'Hadir').length
   const izin = attendance.filter((item) => item.status === 'Izin').length
   const alfa = attendance.filter((item) => item.status === 'Alfa').length
@@ -426,14 +407,13 @@ export async function getStudentPermissions() {
 }
 
 // Get student attendance warnings
-export async function getAttendanceWarnings(mahasiswa_id?: string) {
+export async function getAttendanceWarnings() {
   const { student } = await requireCurrentStudent()
-  const targetId = mahasiswa_id || student.id
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('attendance_warnings')
     .select('*')
-    .eq('mahasiswa_id', targetId)
+    .eq('mahasiswa_id', student.id)
     .order('created_at', { ascending: false })
 
   if (error) throw error
