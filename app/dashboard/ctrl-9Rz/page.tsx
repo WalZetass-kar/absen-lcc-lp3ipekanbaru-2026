@@ -13,7 +13,8 @@ export default async function AdminPage() {
     .from('profiles')
     .select('role, nama')
     .eq('id', user.id)
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   if (profileError) {
     console.error('Failed to load admin profile:', profileError)
